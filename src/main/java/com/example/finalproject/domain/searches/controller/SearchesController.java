@@ -6,10 +6,13 @@ import com.example.finalproject.domain.searches.service.SearchesService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/searches")
 public class SearchesController {
     private final SearchesService searchesService;
+
     public SearchesController(SearchesService searchesService) {
         this.searchesService = searchesService;
     }
@@ -26,5 +29,34 @@ public class SearchesController {
     public ResponseEntity<SearchesResponseDto> update(@RequestBody SearchesRequestDto request) {
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(200).body(response);
+    }
+
+    /**
+     * 특정 사용자 검색 기록 조회
+     */
+    @GetMapping("/me")
+    public ResponseEntity<List<SearchesResponseDto>> getMySearches(
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false, defaultValue = "updatedAt") String sort,
+            @RequestHeader("X-USER-ID") Long userId  // 인증 대신 헤더로 userId 전달 가정
+    ) {
+        List<SearchesResponseDto> result = searchesService.getMySearches(userId, region, sort);
+
+        // response에서 userId는 빼고 내려주고 싶다면 map 단계에서 제거 가능
+        result.forEach(r -> r.setUserId(null));
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 특정 검색 기록 단건 조회
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<SearchesResponseDto> getSearchById(
+            @PathVariable Long id,
+            @RequestHeader("X-USER-ID") Long userId
+    ) {
+        SearchesResponseDto response = searchesService.getSearchById(userId, id);
+        return ResponseEntity.ok(response);
     }
 }
