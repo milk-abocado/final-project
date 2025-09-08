@@ -136,4 +136,19 @@ public class SearchesService {
                 .userId(searches.getUserId())
                 .build();
 }
+    @Transactional
+    public void deleteSearches(Long userId, Long id) {
+        if (userId == null) {
+            throw new UnauthorizedException("로그인 필요");
+        }
+
+        Searches searches = searchesRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("검색 기록 없음"));
+
+        if (!searches.getUserId().equals(userId)) {
+            throw new ForbiddenException("다른 사용자 기록 삭제 불가");
+        }
+
+        searchesRepository.delete(searches);
+    }
 }
