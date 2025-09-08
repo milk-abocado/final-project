@@ -6,7 +6,9 @@ import com.example.finalproject.domain.searches.service.SearchesService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/searches")
@@ -59,4 +61,19 @@ public class SearchesController {
         SearchesResponseDto response = searchesService.getSearchById(userId, id);
         return ResponseEntity.ok(response);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> deleteSearches(
+            @PathVariable Long id,
+            @RequestHeader("X-USER-ID") Long userId
+    ) {
+        searchesService.deleteSearches(userId, id);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "검색 기록이 삭제되었습니다.");
+        response.put("id", id);
+
+        return ResponseEntity.ok(response);
+    }
+
 }
