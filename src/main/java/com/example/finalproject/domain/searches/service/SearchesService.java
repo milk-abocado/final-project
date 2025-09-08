@@ -6,6 +6,11 @@ import com.example.finalproject.domain.searches.entity.Searches;
 import com.example.finalproject.domain.searches.repository.SearchesRepository;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -63,4 +68,72 @@ public class SearchesService {
                 .count(saved.getCount())
                 .build();
     }
+
+    /**
+     * 특정 사용자 검색 기록 조회
+     */
+    @Transactional(readOnly = true)
+    public List<SearchesResponseDto> getMySearches(Long userId, String region, String sort) {
+        //401 검증 (로그인 안 된 경우)
+        if (userId == null) {
+            throw new UnauthorizedException("로그인 필요");
+        }
+
+        List<Searches> searches;
+        if (region != null && !region.isEmpty()) {
+            searches = searchesRepository.findByUserIdAndRegion(userId, region);
+        } else {
+            searches = searchesRepository.findByUserId(userId);
+        }
+
+        //400 검증: sort 값 유효성
+        Comparator<Searches> comparator;
+        if (sort == null || sort.isBlank()) {
+            comparator = Comparator.comparing(Searches::getUpdatedAt).reversed();
+        } else if ("count".equalsIgnoreCase(sort)) {
+            comparator = Comparator.comparing(Searches::getCount).reversed();
+        } else if ("updatedAt".equalsIgnoreCase(sort)) {
+            comparator = Comparator.comparing(Searches::getUpdatedAt).reversed();
+        } else {
+            throw new BadRequestException("잘못된 sort 값");
+        }
+
+        return searches.stream()
+                .sorted(comparator)
+                .map(s -> SearchesResponseDto.builder()
+                        .id(s.getId())
+                        .keyword(s.getKeyword())
+                        .region(s.getRegion())
+                        .count(s.getCount())
+                        .updatedAt(s.getUpdatedAt())
+                        .userId(s.getUserId())
+                        .build())
+                .collect(Collectors.toList());
     }
+
+    /**
+     * 특정 검색 기록 단건 조회
+     */
+    @Transactional(readOnly = true)
+    public SearchesResponseDto getSearchById(Long userId, Long id) {
+        if (userId == null) {
+            throw new UnauthorizedException("로그인 필요");
+        }
+
+        Searches searches = searchesRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("검색 기록 없음"));
+
+        if (!searches.getUserId().equals(userId)) {
+            throw new ForbiddenException("다른 사용자의 기록 조회 불가");
+        }
+
+        return SearchesResponseDto.builder()
+                .id(searches.getId())
+                .keyword(searches.getKeyword())
+                .region(searches.getRegion())
+                .count(searches.getCount())
+                .updatedAt(searches.getUpdatedAt())
+                .userId(searches.getUserId())
+                .build();
+}
+}
