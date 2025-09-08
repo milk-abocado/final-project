@@ -1,4 +1,10 @@
+SET FOREIGN_KEY_CHECKS = 0;
+
+ALTER TABLE stores AUTO_INCREMENT = 0;
+ALTER TABLE store_notices AUTO_INCREMENT = 0;
+
 CREATE SCHEMA IF NOT EXISTS delivery;
+-- 스키마 선택
 USE delivery;
 
 -- 1. 사용자(Users)
@@ -141,7 +147,7 @@ CREATE TABLE orders (
     user_id BIGINT NOT NULL,
     store_id BIGINT NOT NULL,
     total_price INT NOT NULL,
-    status ENUM('WAITING', 'ACCEPTED', 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCLED') NOT NULL, -- 주문 상태
+    status ENUM('WAITING', 'ACCEPTED', 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCELED') NOT NULL, -- 주문 상태
     -- REJECTED, CANCLED 추가 - 주문 거절(사장, 사용자), 주문 취소(고객센터)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -247,3 +253,10 @@ CREATE TABLE review_images (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (review_id) REFERENCES reviews(id)
 );
+
+-- 1) OWNER 유저 생성
+INSERT INTO users (email, password, name, role, created_at)
+VALUES ('owner1@example.com', '{bcrypt-or-temp}', '홍길동', 'OWNER', NOW());
+
+-- 2) 방금 생성된 OWNER의 id를 변수에 저장
+SET @owner_id := LAST_INSERT_ID();
