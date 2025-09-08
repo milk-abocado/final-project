@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class SearchesResponse {
+public class SearchesResponseDto {
     private Long id;
     private String keyword;
     private String region;

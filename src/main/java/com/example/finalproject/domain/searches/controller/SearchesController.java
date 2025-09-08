@@ -1,8 +1,7 @@
 package com.example.finalproject.domain.searches.controller;
 
-import com.example.finalproject.domain.searches.dto.SearchesRequest;
-import com.example.finalproject.domain.searches.dto.SearchesResponse;
-import com.example.finalproject.domain.searches.entity.Searches;
+import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
+import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,15 +16,15 @@ public class SearchesController {
 
     //검색 기록 등록 기능
     @PostMapping
-    public ResponseEntity<SearchesResponse> create(@RequestBody SearchesRequest request) {
-        SearchesResponse response = searchesService.saveOrUpdate(request);
+    public ResponseEntity<SearchesResponseDto> create(@RequestBody SearchesRequestDto request) {
+        SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(201).body(response);
     }
 
     //검색 기록 업데이트 기능
     @PutMapping
-    public ResponseEntity<SearchesResponse> update(@RequestBody SearchesRequest request) {
-        SearchesResponse response = searchesService.saveOrUpdate(request);
+    public ResponseEntity<SearchesResponseDto> update(@RequestBody SearchesRequestDto request) {
+        SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(200).body(response);
     }
 }

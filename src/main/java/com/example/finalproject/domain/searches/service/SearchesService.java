@@ -1,11 +1,10 @@
 package com.example.finalproject.domain.searches.service;
 
-import com.example.finalproject.domain.searches.dto.SearchesRequest;
-import com.example.finalproject.domain.searches.dto.SearchesResponse;
+import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
+import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.entity.Searches;
 import com.example.finalproject.domain.searches.repository.SearchesRepository;
 import org.apache.coyote.BadRequestException;
-import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,7 +16,7 @@ public class SearchesService {
         this.searchesRepository = searchesRepository;
     }
 
-    public SearchesResponse saveOrUpdate(SearchesRequest request) {
+    public SearchesResponseDto saveOrUpdate(SearchesRequestDto request) {
         //400: keyword/region 누락, 길이 초과
         if (request.getKeyword() == null || request.getRegion() == null) {
             throw new BadRequestException("keyword/region 누락");
@@ -55,7 +54,7 @@ public class SearchesService {
 
         Searches saved = searchesRepository.save(searches);
 
-        return SearchesResponse.builder()
+        return SearchesResponseDto.builder()
                 .id(saved.getId())
                 .keyword(saved.getKeyword())
                 .region(saved.getRegion())
