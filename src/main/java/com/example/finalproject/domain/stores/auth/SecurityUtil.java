@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * SecurityUtil
- *
+ * -------------------------------------------------
  * - ThreadLocal을 사용하여 현재 요청(request) 단위의 사용자 정보를 보관하는 유틸 클래스
  * - 주로 인증/인가 과정에서 현재 로그인한 사용자의 ID와 권한(Role)을 관리함
  */
