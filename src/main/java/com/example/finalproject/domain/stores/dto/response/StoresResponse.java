@@ -21,8 +21,7 @@ public class StoresResponse {
     private LocalTime opensAt;         // 영업 시작 시간
     private LocalTime closesAt;        // 영업 종료 시간
 
-    @JsonProperty("delivery_fee")
-    private Integer deliveryFee;       // 배달비 (JSON에서는 "delivery_fee"로 직렬화)
+    private Integer deliveryFee;       // 배달비
 
     private boolean isOpenNow;         // 현재 영업 중인지 여부 (계산 필드, DB 컬럼 아님)
                                        // Service 계층에서 now 기준 opensAt~closesAt 범위 확인 후 세팅

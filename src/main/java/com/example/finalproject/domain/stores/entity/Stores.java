@@ -12,6 +12,11 @@ import java.time.LocalTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "stores",
+        indexes = {
+                @Index(name = "idx_stores_active_name", columnList = "active,name"),
+                @Index(name = "idx_stores_active_lat_lng", columnList = "active,latitude,longitude")
+        })
 public class Stores {
 
     // 기본 키 (PK), Auto Increment
@@ -31,6 +36,13 @@ public class Stores {
     // 가게 주소
     @Column(nullable = false)
     private String address;
+
+    // 위도/경도(지오코딩으로 세팅)
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
 
     // 최소 주문 금액
     @Column(nullable = false)

@@ -40,6 +40,9 @@ dependencies {
     implementation 'org.springframework.security:spring-security-crypto'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+    // 카카오 로컬 API로 지오코딩 어댑터 연결
+    implementation 'org.springframework.boot:spring-boot-starter-webflux' // WebClient
+
 }
 
 tasks.named('test') {

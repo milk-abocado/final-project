@@ -33,8 +33,7 @@ public class StoresRequest {
     @NotNull
     private LocalTime closesAt;
 
-    // 배달비 (0 이상, JSON에서는 "delivery_fee"로 받음)
-    @JsonProperty("delivery_fee")
+    // 배달비 (0원 이상)
     @PositiveOrZero
     private Integer deliveryFee;
 }
