@@ -46,4 +46,7 @@ public class SecurityUtil {
      * @param role 사용자 권한(Role)
      */
     public void set(Long id, Role role) { UID.set(id); ROLE.set(role); }
+
+    /** 요청 종료 시 ThreadLocal 제거 */
+    public void clear() { UID.remove(); ROLE.remove(); }
 }

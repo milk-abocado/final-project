@@ -32,23 +32,22 @@ public class TestAuthFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        try {
+            // 요청 헤더에서 사용자 ID와 권한(Role) 추출
+            String uidHeader = request.getHeader("X-User-Id");
+            String roleHeader = request.getHeader("X-Role");
 
-        // 요청 헤더에서 사용자 ID와 권한(Role) 추출
-        String uidHeader = request.getHeader("X-User-Id");
-        String roleHeader = request.getHeader("X-Role");
-
-        if (uidHeader != null && roleHeader != null) {
-            try {
+            if (uidHeader != null && roleHeader != null) {
                 // ID를 Long으로 변환하고, Role Enum 값으로 변환
                 Long uid = Long.parseLong(uidHeader);
-                Role role = Role.valueOf(roleHeader.toUpperCase()); // OWNER, USER, ADMIN
+                Role role = Role.valueOf(roleHeader.toUpperCase()); // OWNER/USER/ADMIN
                 // SecurityUtil 에 현재 사용자 정보 설정
                 security.set(uid, role);
-            } catch (Exception e) {
-                // 잘못된 값이 들어온 경우 무시하고 다음 필터로 진행
             }
+            // 다음 필터로 요청 전달
+            filterChain.doFilter(request, response);
+        } finally {
+            security.clear(); // 요청이 끝날 때 항상 비우기
         }
-        // 다음 필터로 요청 전달
-        filterChain.doFilter(request, response);
     }
 }

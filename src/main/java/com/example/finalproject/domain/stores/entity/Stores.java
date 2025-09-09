@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -43,6 +44,10 @@ public class Stores {
 
     @Column
     private Double longitude;
+
+    // 가게 카테고리
+    @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<StoreCategoryLink> categoryLinks;
 
     // 최소 주문 금액
     @Column(nullable = false)

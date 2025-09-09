@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.stores.repository;
 
+import com.example.finalproject.domain.stores.category.StoreCategory;
 import com.example.finalproject.domain.stores.entity.Stores;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -7,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -47,24 +49,29 @@ public interface StoresRepository extends JpaRepository<Stores, Long> {
      * - 정렬은 항상 거리 오름차순
      */
     @Query(value = """
-        SELECT
+        SELECT DISTINCT
           s.id, s.owner_id, s.name, s.address, s.latitude, s.longitude,
           s.min_order_price, s.opens_at, s.closes_at, s.delivery_fee,
           s.active, s.retired_at, s.created_at, s.updated_at,
           ST_Distance_Sphere(POINT(:lng, :lat), POINT(s.longitude, s.latitude)) AS distance
         FROM stores s
+        LEFT JOIN store_categories sc ON sc.store_id = s.id
         WHERE s.active = true
           AND (:keyword = '' OR s.name LIKE CONCAT('%', :keyword, '%'))
+          AND (:category IS NULL OR sc.category = :category)
           AND (
             :radiusMeters IS NULL
             OR ST_Distance_Sphere(POINT(:lng, :lat), POINT(s.longitude, s.latitude)) <= :radiusMeters
           )
         ORDER BY distance
         """,
-            countQuery = """
-        SELECT COUNT(*) FROM stores s
+                countQuery = """
+        SELECT COUNT(DISTINCT s.id)
+        FROM stores s
+        LEFT JOIN store_categories sc ON sc.store_id = s.id
         WHERE s.active = true
           AND (:keyword = '' OR s.name LIKE CONCAT('%', :keyword, '%'))
+          AND (:category IS NULL OR sc.category = :category)
           AND (
             :radiusMeters IS NULL
             OR ST_Distance_Sphere(POINT(:lng, :lat), POINT(s.longitude, s.latitude)) <= :radiusMeters
@@ -76,6 +83,18 @@ public interface StoresRepository extends JpaRepository<Stores, Long> {
             @Param("lat") double lat,            // 기준 위도
             @Param("lng") double lng,            // 기준 경도
             @Param("radiusMeters") Double radiusMeters, // 반경(m) (null 이면 무제한)
+            @Param("category") String category,  // 가게 카테고리
             Pageable pageable                    // 페이지/정렬 정보
     );
+
+    /** 주어진 카테고리 중 하나라도 매칭 */
+    @Query("""
+        select distinct s
+        from Stores s
+        join s.categoryLinks l
+        where s.active = true
+          and l.category in :cats
+    """)
+    Page<Stores> findActiveByAnyCategoryIn(@Param("cats") Collection<StoreCategory> cats, Pageable pageable);
+
 }

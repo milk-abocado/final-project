@@ -83,8 +83,15 @@ CREATE TABLE store_categories (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     store_id BIGINT NOT NULL,
     category VARCHAR(50) NOT NULL,
-    FOREIGN KEY (store_id) REFERENCES stores(id)
+    FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
 );
+
+ALTER TABLE store_categories MODIFY category VARCHAR(32) NOT NULL;
+
+ALTER TABLE store_categories
+    ADD CONSTRAINT uk_store_category UNIQUE (store_id, category);
+
+CREATE INDEX idx_store_categories_category ON store_categories (category);
 
 CREATE TABLE reviews (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

@@ -1,6 +1,7 @@
 package com.example.finalproject.domain.stores.service;
 
 import com.example.finalproject.domain.stores.auth.SecurityUtil;
+import com.example.finalproject.domain.stores.category.StoreCategory;
 import com.example.finalproject.domain.stores.dto.response.MenuSummaryResponse;
 import com.example.finalproject.domain.stores.dto.response.StoreDetailResponse;
 import com.example.finalproject.domain.stores.dto.response.StoreListItemResponse;
@@ -47,6 +48,7 @@ public class StoreQueryService {
             String keyword,
             String address,
             Double lat, Double lng, Double radiusKm,
+            StoreCategory category,
             Pageable pageable
     ) {
         String q = (keyword == null) ? "" : keyword.trim();
@@ -68,9 +70,10 @@ public class StoreQueryService {
         // native 쿼리 바인딩을 위한 기본값 (반경 null이면 거리 계산은 WHERE 에서 무시됨)
         double qLat = (lat != null) ? lat : 0.0;
         double qLng = (lng != null) ? lng : 0.0;
+        String cat = (category != null) ? category.name() : null;  // enum → 문자열
 
         // 3) 이름 부분검색 + 반경 필터 + 거리 정렬 (원시 배열 반환)
-        Page<Object[]> page = storesRepository.searchWithDistanceRaw(q, qLat, qLng, radiusMeters, pageable);
+        Page<Object[]> page = storesRepository.searchWithDistanceRaw(q, qLat, qLng, radiusMeters, cat, pageable);
 
         // 4) Row → DTO 매핑
         return page.map(row -> {
@@ -94,10 +97,11 @@ public class StoreQueryService {
             return new StoreListItemResponse(
                     id, name, addressCol, minOrderPrice, deliveryFee,
                     opensAt, closesAt,
-                    isOpenNow(opensAt, closesAt),   // 현재 영업 여부 계산
+                    isOpenNow(opensAt, closesAt),
                     latitude, longitude,
-                    distance,                       // 좌표 미전달 시 null
-                    createdAt, updatedAt
+                    distance,
+                    createdAt, updatedAt,
+                    List.of()
             );
         });
     }
