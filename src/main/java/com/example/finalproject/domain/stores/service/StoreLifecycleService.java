@@ -10,6 +10,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class StoreLifecycleService {
@@ -21,13 +23,12 @@ public class StoreLifecycleService {
      * 가게 폐업 (논리 삭제)
      *
      * @param storeId 폐업 처리할 가게 ID
-     * @throws ApiException
-     *  - OWNER 권한이 아닐 경우 (FORBIDDEN)
-     *  - 가게가 존재하지 않는 경우 (NOT_FOUND)
-     *  - 다른 사용자의 가게를 폐업하려는 경우 (FORBIDDEN)
+     * @throws ApiException - OWNER 권한이 아닐 경우 (FORBIDDEN)
+     *                      - 가게가 존재하지 않는 경우 (NOT_FOUND)
+     *                      - 다른 사용자의 가게를 폐업하려는 경우 (FORBIDDEN)
      */
     @Transactional
-    public void retire(Long storeId) {
+    public String retire(Long storeId) {
         Long uid = security.currentUserId();
 
         // 권한 확인 (OWNER만 가능)
@@ -42,16 +43,15 @@ public class StoreLifecycleService {
         if (!s.getOwner().getId().equals(uid))
             throw new ApiException(ErrorCode.FORBIDDEN, "본인 가게만 폐업할 수 있습니다.");
 
-        // 이미 폐업된 가게면 멱등 처리
-        if (Boolean.FALSE.equals(s.getActive())) {
-            return;
+        // 이미 폐업된 가게면 예외
+        if ((s.getRetiredAt() != null) || (s.getActive() != null && !s.getActive())) {
+            throw new ApiException(ErrorCode.CONFLICT, "이미 폐업된 가게입니다.");
         }
 
-        // 상태 전환 (폐업 처리)
+        // 논리 삭제 처리
         s.setActive(false);
-        s.setRetiredAt(java.time.LocalDateTime.now());
+        s.setRetiredAt(LocalDateTime.now());
 
-        // 명시적 저장
-        storesRepository.save(s);
+        return s.getName();
     }
 }

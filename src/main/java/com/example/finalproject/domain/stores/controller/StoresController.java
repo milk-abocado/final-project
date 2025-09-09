@@ -56,9 +56,11 @@ public class StoresController {
     @PostMapping("/{storeId}/retire")
     public ResponseEntity<Map<String, String>> retire(@PathVariable Long storeId) {
         security.set(1L, Role.OWNER); // 테스트 전용
-        lifecycleService.retire(storeId);
 
-        Map<String, String> body = Map.of("message", "폐업되었습니다.");
+        String storeName = lifecycleService.retire(storeId);
+
+        // 따옴표 없이 자연스러운 메시지로 반환
+        Map<String, String> body = Map.of("message", storeName + " 가게가 폐업되었습니다.");
         return ResponseEntity.ok(body);
     }
 }

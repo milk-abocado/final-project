@@ -13,7 +13,8 @@ public enum ErrorCode {
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),         // 400
     CONFLICT(HttpStatus.CONFLICT, "중복 또는 제약 조건 위반"),         // 409
     LIMIT_EXCEEDED(HttpStatus.CONFLICT, "운영 가능 가게 수 초과"),     // 409 (비즈니스 룰 위반)
-    NOT_FOUND(HttpStatus.NOT_FOUND, "리소스를 찾을 수 없습니다.");      // 404
+    NOT_FOUND(HttpStatus.NOT_FOUND, "리소스를 찾을 수 없습니다."),      // 404
+    GONE(HttpStatus.GONE, "폐업한 가게입니다.");                       // 410
 
     public final HttpStatus status; // HTTP 상태 코드
     public final String message;    // 기본 메시지

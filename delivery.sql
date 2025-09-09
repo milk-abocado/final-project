@@ -268,9 +268,16 @@ CREATE TABLE review_images (
     FOREIGN KEY (review_id) REFERENCES reviews(id)
 );
 
--- 1) OWNER 유저 생성
+-- 임시 OWNER 유저 생성
 INSERT INTO users (email, password, name, role, created_at)
 VALUES ('owner1@example.com', '{bcrypt-or-temp}', '홍길동', 'OWNER', NOW());
 
--- 2) 방금 생성된 OWNER의 id를 변수에 저장
+-- 방금 생성된 OWNER의 id를 변수에 저장
 SET @owner_id := LAST_INSERT_ID();
+
+-- 임시 USER 유저 생성
+INSERT INTO users (email, password, name, role, created_at)
+VALUES ('user1@example.com', '{bcrypt-or-temp}', '김철수', 'USER', NOW());
+
+-- 생성된 USER id 확인
+SELECT LAST_INSERT_ID() AS new_user_id;

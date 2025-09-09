@@ -69,7 +69,7 @@ public class StoreQueryController {
 
     /**
      * 가게 단건 상세 조회 (오너 전용)
-     * - 현재 사용자 Role 이 OWNER 가 아닌 경우 403 Forbidden 반환
+     * - 현재 사용자 Role이 OWNER가 아닌 경우 403 Forbidden 반환
      */
     @GetMapping("/owners/stores/{storeId}")
     public ResponseEntity<StoreDetailResponse> getOneForOwner(@PathVariable Long storeId) {

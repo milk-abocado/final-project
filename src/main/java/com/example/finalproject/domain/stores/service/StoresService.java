@@ -54,9 +54,9 @@ public class StoresService {
         String name = req.getName().trim();
         String address = req.getAddress().trim();
 
-        // 4) 주소 중복 검증
-        if (storesRepository.existsByAddress(address)) {
-            throw new ApiException(ErrorCode.CONFLICT, "이미 등록된 주소입니다.");
+        // 4) 주소 중복 검증 (운영 중 & 미폐업과만 충돌 금지)
+        if (storesRepository.existsByAddressAndActiveTrueAndRetiredAtIsNull(address)) {
+            throw new ApiException(ErrorCode.CONFLICT, "해당 주소로 운영 중인 가게가 이미 존재합니다.");
         }
 
         // 5) OWNER 존재 검증
@@ -70,7 +70,7 @@ public class StoresService {
         }
 
         // 7) 배달비 기본값/범위 검증
-        Integer deliveryFee = (req.getDeliveryFee() == null) ? 0 : req.getDeliveryFee();
+        int deliveryFee = (req.getDeliveryFee() == null) ? 0 : req.getDeliveryFee();
         if (deliveryFee < 0) throw new ApiException(ErrorCode.BAD_REQUEST, "배달비는 0원 이상이어야 합니다.");
 
         // 8) 주소 → 좌표 (필수: 실패 시 예외)
@@ -125,13 +125,13 @@ public class StoresService {
         String newName = req.getName().trim();
         String newAddress = req.getAddress().trim();
 
-        // 6) 주소 중복(자기 자신 제외)
-        if (storesRepository.existsByAddressAndIdNot(newAddress, storeId)) {
-            throw new ApiException(ErrorCode.CONFLICT, "이미 등록된 주소입니다.");
+        // 6) 주소 중복(자기 자신 제외) — 운영 중 & 미폐업과만 충돌 금지
+        if (storesRepository.existsByAddressAndActiveTrueAndRetiredAtIsNullAndIdNot(newAddress, storeId)) {
+            throw new ApiException(ErrorCode.CONFLICT, "해당 주소로 운영 중인 가게가 이미 존재합니다.");
         }
 
         // 7) 배달비 검증
-        Integer deliveryFee = (req.getDeliveryFee() == null) ? 0 : req.getDeliveryFee();
+        int deliveryFee = (req.getDeliveryFee() == null) ? 0 : req.getDeliveryFee();
         if (deliveryFee < 0) throw new ApiException(ErrorCode.BAD_REQUEST, "배달비는 0원 이상이어야 합니다.");
 
         // 8) 주소 변경 여부 판단

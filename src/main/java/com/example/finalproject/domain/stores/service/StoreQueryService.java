@@ -40,8 +40,8 @@ public class StoreQueryService {
     /**
      * 가게 검색 규칙
      * -------------------------------------------------
-     * - address 가 있으면: 지오코딩으로 lat/lng 채워서 반경 검색
-     * - lat/lng & radiusKm 가 있으면: 좌표 기반 반경 검색
+     * - address가 있으면: 지오코딩으로 lat/lng 채워서 반경 검색
+     * - lat/lng & radiusKm가 있으면: 좌표 기반 반경 검색
      * - 둘 다 없으면: 키워드 검색만 수행(거리 null)
      */
     public Page<StoreListItemResponse> search(
@@ -109,14 +109,21 @@ public class StoreQueryService {
     /**
      * 가게 상세 조회 (일반 사용자용)
      * - ACTIVE=true 가게만 노출
-     * - 메뉴는 MenuReader 가 있으면 조회, 없으면 빈 리스트
+     * - 메뉴는 MenuReader가 있으면 조회, 없으면 빈 리스트
      */
     public StoreDetailResponse getOne(Long storeId) {
-        Stores s = storesRepository.findByIdAndActiveTrue(storeId)
+        Stores s = storesRepository.findById(storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
+
+        // 폐업 여부 체크: retiredAt 있거나 active=false 인 경우
+        if ((s.getRetiredAt() != null) || (s.getActive() != null && !s.getActive())) {
+            throw new ApiException(ErrorCode.GONE, "폐업한 가게입니다.");
+        }
+
         List<MenuSummaryResponse> menus = menuReader
                 .map(r -> r.findMenusOfStore(s.getId()))
-                .orElseGet(List::of); // 구현이 없으면 빈 리스트
+                .orElseGet(List::of);
+
         return toDetail(s, menus);
     }
 
@@ -162,7 +169,7 @@ public class StoreQueryService {
         if (open == null || close == null) return false;
         LocalTime now = LocalTime.now();
         if (open.isBefore(close)) return !now.isBefore(open) && !now.isAfter(close);
-        // 영업시작이 종료보다 늦으면 자정 넘김
+        // 영업 시작이 종료보다 늦으면 자정 넘김
         return !now.isBefore(open) || !now.isAfter(close);
     }
 }
