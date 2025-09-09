@@ -1,4 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS delivery;
+CREATE DATABASE IF NOT EXISTS delivery;
 USE delivery;
 
 -- 1. 사용자(Users)
@@ -141,7 +141,7 @@ CREATE TABLE orders (
     user_id BIGINT NOT NULL,
     store_id BIGINT NOT NULL,
     total_price INT NOT NULL,
-    status ENUM('WAITING', 'ACCEPTED', 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCLED') NOT NULL, -- 주문 상태
+    status ENUM('WAITING', 'ACCEPTED', 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCELED') NOT NULL, -- 주문 상태
     -- REJECTED, CANCLED 추가 - 주문 거절(사장, 사용자), 주문 취소(고객센터)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
