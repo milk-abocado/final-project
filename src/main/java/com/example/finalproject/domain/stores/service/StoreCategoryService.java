@@ -82,7 +82,7 @@ public class StoreCategoryService {
         if (existing > 0)
             throw new ApiException(ErrorCode.CONFLICT, "이미 등록된 카테고리가 있습니다. 수정 API를 사용하세요.");
 
-        var set = validateSet(req.categories());
+        var set = validateSet(req.getCategories());
         // 요청한 카테고리들을 링크 엔티티로 저장
         set.forEach(cat -> linkRepository.save(
                 StoreCategoryLink.builder().store(store).category(cat).build()
@@ -103,7 +103,7 @@ public class StoreCategoryService {
     @Transactional
     public StoreCategoriesResponse update(Long storeId, StoreCategoriesRequest req) {
         Stores store = ensureOwnerOfStore(storeId);
-        var set = validateSet(req.categories());
+        var set = validateSet(req.getCategories());
 
         // 전체 삭제 후 새로 저장 (치환)
         linkRepository.deleteByStore_Id(storeId);
