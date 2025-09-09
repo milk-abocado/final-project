@@ -15,8 +15,7 @@ import java.io.IOException;
  * 테스트 환경 전용 인증 필터
  * -------------------------------------------------
  * - Postman 등에서 Header 로 임의의 사용자/권한을 주입할 수 있게 해 줌
- *
- * 사용법 (Postman Headers 예시):
+ * - 사용법 (Postman Headers 예시):
  *   X-User-Id: 1
  *   X-Role: OWNER   // USER, ADMIN 도 가능
  */

@@ -1,6 +1,5 @@
 package com.example.finalproject.domain.stores.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.LocalDateTime;
