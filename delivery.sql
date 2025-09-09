@@ -1,4 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS delivery;
+CREATE DATABASE IF NOT EXISTS delivery;
 USE delivery;
 
 -- 1. 사용자(Users)
@@ -18,6 +18,24 @@ CREATE TABLE users (
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
+-- 2. 가게(Stores) - 수정 예정
+CREATE TABLE stores (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        owner_id BIGINT,
+                        name VARCHAR(100),
+                        address VARCHAR(255),
+                        min_order_price INT,
+                        opens_at TIME,
+                        closes_at TIME,
+                        delivery_fee BIGINT DEFAULT 0, -- 배달비
+    -- 폐업(논리 삭제) 전용 라이프사이클 상태
+                        active BOOLEAN DEFAULT TRUE, -- 영업 OR 폐업
+                        retired_at TIMESTAMP DEFAULT NULL,                   -- 폐업 처리 시각 기록
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (owner_id) REFERENCES users(id)
+);
+
 CREATE TABLE user_stars (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -33,24 +51,6 @@ CREATE TABLE social_logins (
     provider VARCHAR(50) NOT NULL, -- kakao, naver 등
     provider_id VARCHAR(100) NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
--- 2. 가게(Stores) - 수정 예정
-CREATE TABLE stores (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    owner_id BIGINT,
-    name VARCHAR(100),
-    address VARCHAR(255),
-    min_order_price INT,
-    opens_at TIME,
-    closes_at TIME,
-    delivery_fee BIGINT DEFAULT 0, -- 배달비
-    -- 폐업(논리 삭제) 전용 라이프사이클 상태
-    active BOOLEAN DEFAULT TRUE, -- 영업 OR 폐업
-    retired_at TIMESTAMP DEFAULT NULL,                   -- 폐업 처리 시각 기록
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (owner_id) REFERENCES users(id)
 );
 
 CREATE TABLE store_notices (
@@ -71,6 +71,20 @@ CREATE TABLE store_categories (
     store_id BIGINT NOT NULL,
     category VARCHAR(50) NOT NULL,
     FOREIGN KEY (store_id) REFERENCES stores(id)
+);
+
+-- 4. 주문(Orders)
+CREATE TABLE orders (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        user_id BIGINT NOT NULL,
+                        store_id BIGINT NOT NULL,
+                        total_price INT NOT NULL,
+                        status ENUM('WAITING', 'ACCEPTED', 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCELED') NOT NULL, -- 주문 상태
+    -- REJECTED, CANCELED 추가 - 주문 거절(사장, 사용자), 주문 취소(고객센터)
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        FOREIGN KEY (store_id) REFERENCES stores(id)
 );
 
 CREATE TABLE reviews (
@@ -133,20 +147,6 @@ CREATE TABLE menu_option_choices (
     choice_name VARCHAR(100) NOT NULL,  -- 예: HOT, ICE, Large
     extra_price INT DEFAULT 0,          -- 추가 요금
     FOREIGN KEY (group_id) REFERENCES menu_options(id) ON DELETE CASCADE
-);
-
--- 4. 주문(Orders)
-CREATE TABLE orders (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    store_id BIGINT NOT NULL,
-    total_price INT NOT NULL,
-    status ENUM('WAITING', 'ACCEPTED', 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCLED') NOT NULL, -- 주문 상태
-    -- REJECTED, CANCLED 추가 - 주문 거절(사장, 사용자), 주문 취소(고객센터)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (store_id) REFERENCES stores(id)
 );
 
 CREATE TABLE order_items (
