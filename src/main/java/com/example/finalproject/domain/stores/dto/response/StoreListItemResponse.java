@@ -3,6 +3,7 @@ package com.example.finalproject.domain.stores.dto.response;
 import com.example.finalproject.domain.stores.category.StoreCategory;
 import com.example.finalproject.domain.stores.entity.StoreCategoryLink;
 import com.example.finalproject.domain.stores.entity.Stores;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -15,6 +16,7 @@ import java.util.List;
  * - 가게 "목록 조회" 시 사용하는 DTO
  * - 상세 정보가 아닌, 리스트 뷰에 필요한 핵심 정보만 포함
  */
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public record StoreListItemResponse(
         Long id,                    // 가게 ID
         String name,                // 가게 이름
