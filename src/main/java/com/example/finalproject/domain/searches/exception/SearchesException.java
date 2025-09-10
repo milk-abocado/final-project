@@ -10,27 +10,27 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 
-@ControllerAdvice
-public class SearchesException {
-    @ExceptionHandler
-    public ResponseEntity<String> handleBadRequest(BadRequestException exception) {
-        return ResponseEntity.status(400).body(exception.getMessage());
+public class SearchesException extends RuntimeException {
+    private final HttpStatus status;
+
+    public SearchesException(HttpStatus status, String message) {
+        super(message);
+        this.status = status;
     }
 
-    @ExceptionHandler
-    public ResponseEntity<String> handleUnauthorized(UnauthorizedException exception) {
-        return ResponseEntity.status(401).body(exception.getMessage());
+    public HttpStatus getStatus() {
+        return status;
     }
 
-    @ExceptionHandler
-    public ResponseEntity<String> handleNotFound(NotFoundException exception) {
-        return ResponseEntity.status(404).body(exception.getMessage());
+    public static SearchesException badRequest(String message) {
+        return new SearchesException(HttpStatus.BAD_REQUEST, message);
     }
 
-    @ResponseStatus(HttpStatus.FORBIDDEN)
-    public class ForbiddenException extends RuntimeException {
-        public ForbiddenException(String message) {
-            super(message);
-        }
+    public static SearchesException unauthorized(String message) {
+        return new SearchesException(HttpStatus.UNAUTHORIZED, message);
+    }
+
+    public static SearchesException notFound(String message) {
+        return new SearchesException(HttpStatus.NOT_FOUND, message);
     }
 }
