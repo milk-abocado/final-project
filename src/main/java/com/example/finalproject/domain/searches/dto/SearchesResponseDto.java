@@ -13,5 +13,6 @@ public class SearchesResponseDto {
     private String region;
     private Integer count;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private Long userId;
 }

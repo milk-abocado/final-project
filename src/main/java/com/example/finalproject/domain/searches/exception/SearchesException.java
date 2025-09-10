@@ -33,4 +33,8 @@ public class SearchesException extends RuntimeException {
     public static SearchesException notFound(String message) {
         return new SearchesException(HttpStatus.NOT_FOUND, message);
     }
+
+    public static SearchesException forbidden(String message) {
+        return new SearchesException(HttpStatus.FORBIDDEN, message);
+    }
 }

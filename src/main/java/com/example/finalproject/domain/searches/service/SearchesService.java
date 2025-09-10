@@ -125,7 +125,7 @@ public class SearchesService {
                 .orElseThrow(() -> SearchesException.notFound("검색 기록 없음"));
 
         if (!searches.getUserId().equals(userId)) {
-            throw new ForbiddenException("다른 사용자의 기록 조회 불가");
+            throw SearchesException.forbidden("다른 사용자의 기록 조회 불가");
         }
 
         return SearchesResponseDto.builder()
@@ -147,7 +147,7 @@ public class SearchesService {
                 .orElseThrow(() -> SearchesException.notFound("검색 기록 없음"));
 
         if (!searches.getUserId().equals(userId)) {
-            throw new ForbiddenException("다른 사용자 기록 삭제 불가");
+            throw SearchesException.forbidden("다른 사용자 기록 삭제 불가");
         }
 
         searchesRepository.delete(searches);
