@@ -3,6 +3,7 @@ package com.example.finalproject.domain.searches.controller;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
+import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,14 +22,14 @@ public class SearchesController {
 
     //검색 기록 등록 기능
     @PostMapping
-    public ResponseEntity<SearchesResponseDto> create(@RequestBody SearchesRequestDto request) {
+    public ResponseEntity<SearchesResponseDto> create(@RequestBody SearchesRequestDto request) throws BadRequestException {
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(201).body(response);
     }
 
     //검색 기록 업데이트 기능
     @PutMapping
-    public ResponseEntity<SearchesResponseDto> update(@RequestBody SearchesRequestDto request) {
+    public ResponseEntity<SearchesResponseDto> update(@RequestBody SearchesRequestDto request) throws BadRequestException {
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(200).body(response);
     }

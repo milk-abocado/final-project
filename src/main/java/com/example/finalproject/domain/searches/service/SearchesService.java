@@ -3,6 +3,7 @@ package com.example.finalproject.domain.searches.service;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.entity.Searches;
+import com.example.finalproject.domain.searches.exception.SearchesException;
 import com.example.finalproject.domain.searches.repository.SearchesRepository;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
@@ -21,23 +22,23 @@ public class SearchesService {
         this.searchesRepository = searchesRepository;
     }
 
-    public SearchesResponseDto saveOrUpdate(SearchesRequestDto request) {
+    public SearchesResponseDto saveOrUpdate(SearchesRequestDto request) throws BadRequestException {
         //400: keyword/region 누락, 길이 초과
         if (request.getKeyword() == null || request.getRegion() == null) {
-            throw new BadRequestException("keyword/region 누락");
+            throw SearchesException.badRequest("keyword/region 누락");
         }
         if (request.getKeyword().length() > 100 || request.getRegion().length() > 50) {
-            throw new BadRequestException("길이 초과");
+            throw SearchesException.badRequest("길이 초과");
         }
 
         //401: 인증 실패(로그인 필요)
         if (request.getUserId() == null) {
-            throw new UnauthorizedException("로그인 필요");
+            throw SearchesException.unauthorized("로그인 필요");
         }
 
         //404: 존재하지 않는 user_id 참조
         if (!userRepository.existsById(request.getUserId())) {
-            throw new NotFoundException("존재하지 않는 userId");
+            throw SearchesException.notFound("존재하지 않는 userId");
         }
 
         //검색 기록 찾기
@@ -76,7 +77,7 @@ public class SearchesService {
     public List<SearchesResponseDto> getMySearches(Long userId, String region, String sort) {
         //401 검증 (로그인 안 된 경우)
         if (userId == null) {
-            throw new UnauthorizedException("로그인 필요");
+            throw SearchesException.unauthorized("로그인 필요");
         }
 
         List<Searches> searches;
@@ -95,7 +96,7 @@ public class SearchesService {
         } else if ("updatedAt".equalsIgnoreCase(sort)) {
             comparator = Comparator.comparing(Searches::getUpdatedAt).reversed();
         } else {
-            throw new BadRequestException("잘못된 sort 값");
+            throw SearchesException.badRequest("잘못된 sort 값");
         }
 
         return searches.stream()
@@ -117,11 +118,11 @@ public class SearchesService {
     @Transactional(readOnly = true)
     public SearchesResponseDto getSearchById(Long userId, Long id) {
         if (userId == null) {
-            throw new UnauthorizedException("로그인 필요");
+            throw SearchesException.unauthorized("로그인 필요");
         }
 
         Searches searches = searchesRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("검색 기록 없음"));
+                .orElseThrow(() -> SearchesException.notFound("검색 기록 없음"));
 
         if (!searches.getUserId().equals(userId)) {
             throw new ForbiddenException("다른 사용자의 기록 조회 불가");
@@ -139,11 +140,11 @@ public class SearchesService {
     @Transactional
     public void deleteSearches(Long userId, Long id) {
         if (userId == null) {
-            throw new UnauthorizedException("로그인 필요");
+            throw SearchesException.unauthorized("로그인 필요");
         }
 
         Searches searches = searchesRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("검색 기록 없음"));
+                .orElseThrow(() -> SearchesException.notFound("검색 기록 없음"));
 
         if (!searches.getUserId().equals(userId)) {
             throw new ForbiddenException("다른 사용자 기록 삭제 불가");
