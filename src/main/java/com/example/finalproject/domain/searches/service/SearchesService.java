@@ -37,7 +37,7 @@ public class SearchesService {
         }
 
         //404: 존재하지 않는 user_id 참조
-        if (!userRepository.existsById(request.getUserId())) {
+        if (!usersRepository.existsById(request.getUserId())) {
             throw SearchesException.notFound("존재하지 않는 userId");
         }
 
