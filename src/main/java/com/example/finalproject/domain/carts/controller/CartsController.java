@@ -3,7 +3,7 @@ package com.example.finalproject.domain.carts.controller;
 import com.example.finalproject.domain.carts.dto.request.CartsItemRequest;
 import com.example.finalproject.domain.carts.dto.response.CartsItemResponse;
 import com.example.finalproject.domain.carts.dto.response.CartsResponse;
-import com.example.finalproject.domain.carts.exception.CartAccessDeniedException;
+import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.carts.service.CartsService;
 
 import com.example.finalproject.domain.users.entity.Users;
@@ -34,7 +34,7 @@ public class CartsController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
         if (user.getRole() == Users.Role.OWNER) {
-            throw new CartAccessDeniedException("OWNER는 장바구니에 접근할 수 없습니다.");
+            throw new AccessDeniedException("OWNER는 장바구니에 접근할 수 없습니다.");
         }
     }
 
@@ -56,7 +56,7 @@ public class CartsController {
             return ResponseEntity.ok(cart);
         } catch (ResponseStatusException e) {
             return str(e.getStatusCode(), e.getReason());
-        } catch (CartAccessDeniedException e) {
+        } catch (AccessDeniedException e) {
             return str(HttpStatus.FORBIDDEN, e.getMessage());
         } catch (IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -77,7 +77,7 @@ public class CartsController {
             return ResponseEntity.status(201).body(added);
         } catch (ResponseStatusException e) {
             return str(e.getStatusCode(), e.getReason());
-        } catch (CartAccessDeniedException e) {
+        } catch (AccessDeniedException e) {
             return str(HttpStatus.FORBIDDEN, e.getMessage());
         } catch (IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -100,7 +100,7 @@ public class CartsController {
             return ResponseEntity.ok(updated);
         } catch (ResponseStatusException e) {
             return str(e.getStatusCode(), e.getReason());
-        } catch (CartAccessDeniedException e) {
+        } catch (AccessDeniedException e) {
             return str(HttpStatus.FORBIDDEN, e.getMessage());
         } catch (IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -123,7 +123,7 @@ public class CartsController {
 
         } catch (ResponseStatusException e) {
             return str(e.getStatusCode(), e.getReason());
-        } catch (CartAccessDeniedException e) {
+        } catch (AccessDeniedException e) {
             return str(HttpStatus.FORBIDDEN, e.getMessage());
         } catch (IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -140,7 +140,7 @@ public class CartsController {
             return ResponseEntity.ok("장바구니가 비워졌습니다.");
         } catch (ResponseStatusException e) {
             return str(e.getStatusCode(), e.getReason());
-        } catch (CartAccessDeniedException e) {
+        } catch (AccessDeniedException e) {
             return str(HttpStatus.FORBIDDEN, e.getMessage());
         } catch (IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
