@@ -1,4 +1,4 @@
-package com.example.finalproject.domain.infra.redis;
+package com.example.finalproject.domain.common.redis;
 
 import org.springframework.context.annotation.*;
 import org.springframework.data.redis.connection.*;

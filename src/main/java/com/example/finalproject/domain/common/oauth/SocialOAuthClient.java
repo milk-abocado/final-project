@@ -1,4 +1,4 @@
-package com.example.finalproject.domain.infra.oauth;
+package com.example.finalproject.domain.common.oauth;
 
 import lombok.*;
 import org.springframework.boot.web.client.RestTemplateBuilder;

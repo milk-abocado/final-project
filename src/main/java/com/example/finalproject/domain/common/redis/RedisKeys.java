@@ -1,4 +1,4 @@
-package com.example.finalproject.domain.infra.redis;
+package com.example.finalproject.domain.common.redis;
 
 public final class RedisKeys {
     public static String signupCode(String email){ return "signup:code:"+email; }

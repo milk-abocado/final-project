@@ -11,9 +11,9 @@ import com.example.finalproject.domain.auth.dto.TokenRefreshRequest;
 import com.example.finalproject.domain.users.UserRepository;
 import com.example.finalproject.domain.users.UserRole;
 import com.example.finalproject.domain.users.Users;
-import com.example.finalproject.domain.infra.jwt.JwtProvider;
-import com.example.finalproject.domain.infra.redis.CodeStore;
-import com.example.finalproject.domain.infra.redis.TokenStore;
+import com.example.finalproject.domain.common.jwt.JwtProvider;
+import com.example.finalproject.domain.common.redis.CodeStore;
+import com.example.finalproject.domain.common.redis.TokenStore;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;

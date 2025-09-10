@@ -1,4 +1,4 @@
-package com.example.finalproject.domain.infra.jwt;
+package com.example.finalproject.domain.common.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
