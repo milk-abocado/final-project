@@ -24,6 +24,7 @@ public class Users {
     private String name;
     private String nickname;
     private String phoneNumber;
+    private String address; // 추가
 
     @Enumerated(EnumType.STRING)
     private Role role; // USER, OWNER, ADMIN

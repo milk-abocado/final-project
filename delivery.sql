@@ -10,6 +10,7 @@ CREATE TABLE users (
     name VARCHAR(100),
     nickname VARCHAR(100),
     phone_number VARCHAR(15),
+    address VARCHAR(100),
     role ENUM('USER', 'OWNER','ADMIN') NOT NULL, -- USER / OWNER / ADMIN
     social_login BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
