@@ -38,6 +38,8 @@ public class PointsDtos {
     }
 
     //포인트 잔액, 내역
+    @Getter
+    @Setter
     public static class UserPointsResponse{
         private Long userId;
         private int totalPoints;
