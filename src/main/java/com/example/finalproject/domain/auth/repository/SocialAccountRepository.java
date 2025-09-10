@@ -1,5 +1,6 @@
-package com.example.finalproject.domain.auth;
+package com.example.finalproject.domain.auth.repository;
 
+import com.example.finalproject.domain.auth.entity.SocialAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

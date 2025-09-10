@@ -1,5 +1,6 @@
-package com.example.finalproject.domain.users;
+package com.example.finalproject.domain.users.entity;
 
+import com.example.finalproject.domain.users.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 

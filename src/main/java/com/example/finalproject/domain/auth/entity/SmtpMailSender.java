@@ -1,4 +1,4 @@
-package com.example.finalproject.domain.auth;
+package com.example.finalproject.domain.auth.entity;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.InternetAddress;

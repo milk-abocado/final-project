@@ -1,4 +1,4 @@
-package com.example.finalproject.domain.auth;
+package com.example.finalproject.domain.auth.service;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

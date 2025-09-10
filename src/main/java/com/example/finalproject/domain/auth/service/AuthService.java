@@ -1,6 +1,9 @@
 // src/main/java/com/example/finalproject/domain/auth/AuthService.java
-package com.example.finalproject.domain.auth;
+package com.example.finalproject.domain.auth.service;
 
+import com.example.finalproject.domain.auth.SmtpMailSender;
+import com.example.finalproject.domain.auth.entity.SocialAccount;
+import com.example.finalproject.domain.auth.repository.SocialAccountRepository;
 import com.example.finalproject.domain.auth.dto.EmailRequest;
 import com.example.finalproject.domain.auth.dto.EmailVerifyRequest;
 import com.example.finalproject.domain.auth.dto.LoginRequest;
@@ -8,9 +11,9 @@ import com.example.finalproject.domain.auth.dto.SignupRequest;
 import com.example.finalproject.domain.auth.dto.SocialProviderLoginRequest;
 import com.example.finalproject.domain.auth.dto.TokenRefreshRequest;
 
-import com.example.finalproject.domain.users.UserRepository;
+import com.example.finalproject.domain.users.repository.UserRepository;
 import com.example.finalproject.domain.users.UserRole;
-import com.example.finalproject.domain.users.Users;
+import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.common.jwt.JwtProvider;
 import com.example.finalproject.domain.common.redis.CodeStore;
 import com.example.finalproject.domain.common.redis.TokenStore;

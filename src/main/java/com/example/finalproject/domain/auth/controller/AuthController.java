@@ -1,8 +1,8 @@
 package com.example.finalproject.domain.auth.controller;
 
-import com.example.finalproject.domain.auth.AuthService;
+import com.example.finalproject.domain.auth.service.AuthService;
 import com.example.finalproject.domain.auth.dto.*;
-import com.example.finalproject.domain.users.*;
+import com.example.finalproject.domain.users.entity.Users;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
