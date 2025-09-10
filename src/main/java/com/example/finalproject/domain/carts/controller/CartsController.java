@@ -117,7 +117,6 @@ public class CartsController {
 
         try {
             verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
-
             cartsService.deleteCartItem(userId, cartItemId);
             return ResponseEntity.ok("장바구니 상품이 삭제되었습니다.");
 
@@ -142,8 +141,6 @@ public class CartsController {
             return str(e.getStatusCode(), e.getReason());
         } catch (AccessDeniedException e) {
             return str(HttpStatus.FORBIDDEN, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return str(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (Exception e) {
             return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
         }
