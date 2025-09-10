@@ -281,7 +281,13 @@ public class CartsService {
 
         if (cart == null) return;
 
-        cart.getItems().removeIf(i -> i.getCartItemId().equals(cartItemId));
+        CartsItemResponse item = cart.getItems().stream()
+                .filter(i -> i.getCartItemId().equals(cartItemId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 cartItemId입니다."));
+
+        cart.getItems().remove(item);
+
         cartsRepository.saveCart(userId, cart);
     }
 
