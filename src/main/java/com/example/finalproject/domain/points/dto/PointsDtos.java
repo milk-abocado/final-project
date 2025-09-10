@@ -20,7 +20,7 @@ public class PointsDtos {
     //포인트 사용 요청
     @Getter
     @Setter
-    public static class UserRequest{
+    public static class UseRequest{
         private Long userId;
         private Long orderId; // 추후 주문 구현 시 DB 추가해야함
         private int amount;
