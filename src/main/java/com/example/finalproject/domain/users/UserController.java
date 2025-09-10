@@ -1,9 +1,7 @@
-package com.example.finalproject.domain.auth.controller;
+package com.example.finalproject.domain.users;
 
 import com.example.finalproject.domain.auth.dto.UserProfileResponse;
 import com.example.finalproject.domain.auth.dto.UserUpdateRequest;
-import com.example.finalproject.domain.users.UserRepository;
-import com.example.finalproject.domain.users.Users;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
