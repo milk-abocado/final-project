@@ -23,7 +23,7 @@ public class Stores {
 
     private String name;
     private String address;
-    private int minOrderPrice;
+    private Integer minOrderPrice;
     private LocalTime opensAt;
     private LocalTime closesAt;
     private Long deliveryFee;

@@ -21,7 +21,7 @@ public class Menus {
     private Stores store;
 
     private String name;
-    private int price;
+    private Integer price;
 
     @Enumerated(EnumType.STRING)
     private MenuStatus status;
