@@ -1,7 +1,7 @@
 // src/main/java/com/example/finalproject/domain/auth/AuthService.java
 package com.example.finalproject.domain.auth.service;
 
-import com.example.finalproject.domain.auth.SmtpMailSender;
+import com.example.finalproject.domain.common.mail.SmtpMailSender;
 import com.example.finalproject.domain.auth.entity.SocialAccount;
 import com.example.finalproject.domain.auth.repository.SocialAccountRepository;
 import com.example.finalproject.domain.auth.dto.EmailRequest;
