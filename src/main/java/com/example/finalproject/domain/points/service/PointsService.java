@@ -4,7 +4,7 @@ import com.example.finalproject.domain.points.dto.PointsDtos;
 import com.example.finalproject.domain.points.entity.Points;
 import com.example.finalproject.domain.points.exception.PointException;
 import com.example.finalproject.domain.points.repository.PointsRepository;
-import com.example.finalproject.domain.users.Users;
+import com.example.finalproject.domain.users.entity.Users;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

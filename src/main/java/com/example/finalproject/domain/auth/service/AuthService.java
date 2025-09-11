@@ -11,13 +11,13 @@ import com.example.finalproject.domain.auth.dto.SignupRequest;
 import com.example.finalproject.domain.auth.dto.SocialProviderLoginRequest;
 import com.example.finalproject.domain.auth.dto.TokenRefreshRequest;
 
-import com.example.finalproject.domain.users.repository.UserRepository;
 import com.example.finalproject.domain.users.UserRole;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.common.jwt.JwtProvider;
 import com.example.finalproject.domain.common.redis.CodeStore;
 import com.example.finalproject.domain.common.redis.TokenStore;
 
+import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,7 +29,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final UserRepository userRepository;
+    private final UsersRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
 
     private final JwtProvider jwtProvider;

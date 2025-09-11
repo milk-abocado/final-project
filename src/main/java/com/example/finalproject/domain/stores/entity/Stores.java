@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.stores.entity;
 
+import com.example.finalproject.domain.users.entity.Users;
 import jakarta.persistence.*;
 import lombok.*;
 

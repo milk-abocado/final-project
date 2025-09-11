@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.stores.entity;
 
+import com.example.finalproject.domain.users.entity.Users;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -8,7 +9,6 @@ import java.time.LocalDateTime;
 
 /**
  * UserStar (즐겨찾기 엔티티)
- *
  * - 사용자와 가게 간의 즐겨찾기 관계를 나타내는 엔티티
  * - 한 사용자가 같은 가게를 여러 번 즐겨찾기하지 못하도록 Unique 제약 조건 적용
  */

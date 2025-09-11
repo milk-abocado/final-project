@@ -6,7 +6,6 @@ import com.example.finalproject.domain.carts.dto.response.CartsResponse;
 import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.carts.service.CartsService;
 
-import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,25 +22,25 @@ import java.time.LocalDateTime;
 public class CartsController {
 
     private final CartsService cartsService;
-    private final UsersRepository usersRepository;
+//    private final UsersRepository usersRepository;
 
     private ResponseEntity<String> str(HttpStatusCode status, String msg) {
         return ResponseEntity.status(status).body(msg);
     }
 
-    private void verifiedUser(Long userId) {
-        Users user = usersRepository.findById(userId) // 지금은 없는 userId를 넣었을 때 예외 처리. 나중에 합칠 때 로그인 코드에 맞춰 수정 예정
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
-
-        if (user.getRole() == Users.Role.OWNER) {
-            throw new AccessDeniedException("OWNER는 장바구니에 접근할 수 없습니다.");
-        }
-    }
+//    private void verifiedUser(Long userId) {
+//        Users user = usersRepository.findById(userId) // 지금은 없는 userId를 넣었을 때 예외 처리. 나중에 합칠 때 로그인 코드에 맞춰 수정 예정
+//                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
+//
+//        if (user.getRole() == Users.Role.OWNER) {
+//            throw new AccessDeniedException("OWNER는 장바구니에 접근할 수 없습니다.");
+//        }
+//    }
 
     @GetMapping
     public ResponseEntity<?> getCart(@RequestHeader Long userId) {
         try {
-            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
+//            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
 
             // Redis에서 장바구니 조회
             CartsResponse cart = cartsService.getCart(userId);
@@ -71,7 +70,7 @@ public class CartsController {
             @RequestBody CartsItemRequest cartsItemRequest) {
 
         try {
-            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
+//            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
 
             CartsItemResponse added = cartsService.addCartItem(userId, cartsItemRequest);
             return ResponseEntity.status(201).body(added);
@@ -94,7 +93,7 @@ public class CartsController {
             @PathVariable String cartItemId,
             @RequestBody CartsItemRequest request) {
         try {
-            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
+//            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
 
             CartsItemResponse updated = cartsService.updateCartItem(userId, cartItemId, request);
             return ResponseEntity.ok(updated);
@@ -116,7 +115,7 @@ public class CartsController {
             @PathVariable String cartItemId) {
 
         try {
-            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
+//            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
             cartsService.deleteCartItem(userId, cartItemId);
             return ResponseEntity.ok("장바구니 상품이 삭제되었습니다.");
 
@@ -134,7 +133,7 @@ public class CartsController {
     @DeleteMapping
     public ResponseEntity<?> clearCart(@RequestHeader Long userId) {
         try {
-            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
+//            verifiedUser(userId); // 로그인/권한 체크(OWNER 제외)
             cartsService.clearCart(userId);
             return ResponseEntity.ok("장바구니가 비워졌습니다.");
         } catch (ResponseStatusException e) {

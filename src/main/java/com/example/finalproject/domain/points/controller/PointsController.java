@@ -2,7 +2,7 @@ package com.example.finalproject.domain.points.controller;
 
 import com.example.finalproject.domain.points.dto.PointsDtos;
 import com.example.finalproject.domain.points.service.PointsService;
-import com.example.finalproject.domain.users.Users;
+import com.example.finalproject.domain.users.entity.Users;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

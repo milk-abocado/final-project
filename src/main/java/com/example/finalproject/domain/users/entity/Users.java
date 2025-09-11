@@ -15,15 +15,19 @@ public class Users {
     private Long id;
 
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, length = 100, nullable = false)
     private String email;
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false, length = 50)
+    private String name;
+
     @Enumerated(EnumType.STRING)
-    private UserRole role = UserRole.USER;
+    private UserRole role;
 
     private String nickname;
+    private String address;
     private boolean deleted;
 
     private LocalDateTime createdAt;

@@ -1,11 +1,9 @@
 package com.example.finalproject.domain.points.entity;
 
-import com.example.finalproject.domain.users.Users;
+import com.example.finalproject.domain.users.entity.Users;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 import java.time.LocalDateTime;
 
