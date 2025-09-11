@@ -6,31 +6,39 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor @Builder
 @Entity
 @Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Users {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "email", nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "password", nullable = false)
+    @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(name = "nickname", nullable = false)
-    private String nickname;
-
-    @Column(name = "name")
+    @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(name = "phone_number")
+    @Column(nullable = false, length = 100)
+    private String nickname;
+
+    @Column(name = "phone_number", length = 30)
     private String phoneNumber;
 
+    @Column(nullable = false, length = 255)
+    private String address;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
+    @Column(nullable = false, length = 20)
     private UserRole role;
 
     @Column(name = "social_login", nullable = false)
@@ -45,10 +53,16 @@ public class Users {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @PrePersist void onCreate() {
+    @PrePersist
+    void onCreate() {
         LocalDateTime now = LocalDateTime.now();
-        if (createdAt == null) createdAt = now;
-        if (updatedAt == null) updatedAt = now;
+        this.createdAt = now;
+        this.updatedAt = now;
+        if (this.role == null) this.role = UserRole.USER;
     }
-    @PreUpdate void onUpdate() { updatedAt = LocalDateTime.now(); }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

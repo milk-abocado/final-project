@@ -4,7 +4,7 @@ package com.example.finalproject.domain.users.controller;
 import com.example.finalproject.domain.users.dto.UserDetailResponse;
 import com.example.finalproject.domain.users.dto.UserSummaryResponse;
 import com.example.finalproject.domain.users.entity.Users;
-import com.example.finalproject.domain.users.repository.UserRepository;
+import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +18,7 @@ import java.util.List;
 @RequestMapping("/users")
 public class UsersController {
 
-    private final UserRepository userRepository;
+    private final UsersRepository userRepository;
 
     @GetMapping
     public ResponseEntity<List<UserSummaryResponse>> list() {
