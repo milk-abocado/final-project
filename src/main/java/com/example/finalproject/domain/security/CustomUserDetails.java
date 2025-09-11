@@ -1,4 +1,4 @@
-package com.example.finalproject.security;
+package com.example.finalproject.domain.security;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

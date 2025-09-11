@@ -1,4 +1,4 @@
-package com.example.finalproject.security;
+package com.example.finalproject.domain.security;
 
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
