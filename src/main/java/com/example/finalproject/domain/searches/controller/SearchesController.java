@@ -41,8 +41,10 @@ public class SearchesController {
     public ResponseEntity<List<SearchesResponseDto>> getMySearches(
             @RequestParam(required = false) String region,
             @RequestParam(required = false, defaultValue = "updatedAt") String sort,
-            @RequestHeader("X-USER-ID") Long userId  // 인증 대신 헤더로 userId 전달 가정
+            @AuthenticationPrincipal CustomUserDetails userDetails //로그인 인증에서 유저 정보 받기
     ) {
+        Long userId = userDetails.getuserId();
+
         List<SearchesResponseDto> result = searchesService.getMySearches(userId, region, sort);
 
         // response에서 userId는 빼고 내려주고 싶다면 map 단계에서 제거 가능
@@ -57,18 +59,18 @@ public class SearchesController {
     @GetMapping("/{id}")
     public ResponseEntity<SearchesResponseDto> getSearchById(
             @PathVariable Long id,
-            @RequestHeader("X-USER-ID") Long userId
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        SearchesResponseDto response = searchesService.getSearchById(userId, id);
+        SearchesResponseDto response = searchesService.getSearchById(userDetails.getuserId(), id);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteSearches(
             @PathVariable Long id,
-            @RequestHeader("X-USER-ID") Long userId
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        searchesService.deleteSearches(userId, id);
+        searchesService.deleteSearches(userDetails.getuserId(), id);
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", "검색 기록이 삭제되었습니다.");
@@ -76,5 +78,4 @@ public class SearchesController {
 
         return ResponseEntity.ok(response);
     }
-
 }
