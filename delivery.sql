@@ -307,3 +307,33 @@ VALUES ('user1@example.com', '{bcrypt-or-temp}', '김철수', 'USER', NOW());
 
 -- 생성된 USER id 확인
 SELECT LAST_INSERT_ID() AS new_user_id;
+
+
+CREATE TABLE social_accounts (
+                                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                user_id BIGINT NOT NULL,
+                                provider VARCHAR(20) NOT NULL,
+                                provider_user_id VARCHAR(100) NOT NULL,
+                                email VARCHAR(255),
+                                display_name VARCHAR(100),
+                                profile_image_url VARCHAR(500),
+                                refresh_token VARCHAR(512),
+                                connected_at DATETIME(6),
+                                created_at DATETIME(6),
+                                updated_at DATETIME(6),
+                                CONSTRAINT uk_social_provider_subject UNIQUE (provider, provider_user_id),
+                                CONSTRAINT fk_social_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE INDEX idx_social_user ON social_accounts(user_id);
+
+ALTER TABLE social_accounts
+    ADD COLUMN provider_id VARCHAR(100) NOT NULL;
+
+ALTER TABLE stores
+    ADD COLUMN latitude DOUBLE NOT NULL;
+
+ALTER TABLE stores
+    ADD COLUMN longitude DOUBLE NOT NULL;
+
+ALTER TABLE users
+    ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
