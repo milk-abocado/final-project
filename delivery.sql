@@ -26,25 +26,8 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     allow_notifications BOOLEAN DEFAULT FALSE,
-    is_deleted BOOLEAN DEFAULT FALSE
-);
-
--- 2. 가게(Stores) - 수정 예정
-CREATE TABLE stores (
-                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        owner_id BIGINT,
-                        name VARCHAR(100),
-                        address VARCHAR(255),
-                        min_order_price INT,
-                        opens_at TIME,
-                        closes_at TIME,
-                        delivery_fee BIGINT DEFAULT 0, -- 배달비
-    -- 폐업(논리 삭제) 전용 라이프사이클 상태
-                        active BOOLEAN DEFAULT TRUE, -- 영업 OR 폐업
-                        retired_at TIMESTAMP DEFAULT NULL,                   -- 폐업 처리 시각 기록
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        FOREIGN KEY (owner_id) REFERENCES users(id)
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE user_stars (
@@ -310,30 +293,20 @@ SELECT LAST_INSERT_ID() AS new_user_id;
 
 
 CREATE TABLE social_accounts (
-                                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                user_id BIGINT NOT NULL,
-                                provider VARCHAR(20) NOT NULL,
-                                provider_user_id VARCHAR(100) NOT NULL,
-                                email VARCHAR(255),
-                                display_name VARCHAR(100),
-                                profile_image_url VARCHAR(500),
-                                refresh_token VARCHAR(512),
-                                connected_at DATETIME(6),
-                                created_at DATETIME(6),
-                                updated_at DATETIME(6),
-                                CONSTRAINT uk_social_provider_subject UNIQUE (provider, provider_user_id),
-                                CONSTRAINT fk_social_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    provider VARCHAR(20) NOT NULL,
+    provider_user_id VARCHAR(100) NOT NULL,
+    provider_id VARCHAR(100) NOT NULL,
+    email VARCHAR(255),
+    display_name VARCHAR(100),
+    profile_image_url VARCHAR(500),
+    refresh_token VARCHAR(512),
+    connected_at DATETIME(6),
+    created_at DATETIME(6),
+    updated_at DATETIME(6),
+    CONSTRAINT uk_social_provider_subject UNIQUE (provider, provider_user_id),
+    CONSTRAINT fk_social_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE INDEX idx_social_user ON social_accounts(user_id);
-
-ALTER TABLE social_accounts
-    ADD COLUMN provider_id VARCHAR(100) NOT NULL;
-
-ALTER TABLE stores
-    ADD COLUMN latitude DOUBLE NOT NULL;
-
-ALTER TABLE stores
-    ADD COLUMN longitude DOUBLE NOT NULL;
-
-ALTER TABLE users
-    ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
