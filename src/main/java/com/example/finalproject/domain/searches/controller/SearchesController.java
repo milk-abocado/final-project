@@ -27,7 +27,7 @@ public class SearchesController {
     public ResponseEntity<SearchesResponseDto> create(
             @RequestBody SearchesRequestDto request,
             @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
+    ) throws BadRequestException {
         request.setUserId(userDetails.getUserId());
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(201).body(response);
@@ -38,7 +38,7 @@ public class SearchesController {
     public ResponseEntity<SearchesResponseDto> update(
             @RequestBody SearchesRequestDto request,
             @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
+    ) throws BadRequestException {
         request.setUserId(userDetails.getUserId); //dto에 userId 주입
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(200).body(response);
