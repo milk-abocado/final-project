@@ -1,8 +1,18 @@
+
 CREATE DATABASE IF NOT EXISTS delivery;
+
+-- 0) 안전 옵션 (테스트용)
+SET FOREIGN_KEY_CHECKS = 0;
+
+ALTER TABLE stores AUTO_INCREMENT = 0;
+# ALTER TABLE store_notices AUTO_INCREMENT = 0;
+
+-- 1) 스키마 생성 및 선택
+CREATE SCHEMA IF NOT EXISTS delivery;
+
 USE delivery;
 
--- 1. 사용자(Users)
-
+-- 2) 사용자(Users)
 CREATE TABLE users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -35,23 +45,30 @@ CREATE TABLE social_logins (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- 2. 가게(Stores) - 수정 예정
+-- 2. 가게(Stores)
 CREATE TABLE stores (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    owner_id BIGINT,
-    name VARCHAR(100),
-    address VARCHAR(255),
-    min_order_price INT,
-    opens_at TIME,
-    closes_at TIME,
-    delivery_fee BIGINT DEFAULT 0, -- 배달비
+    owner_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    -- 위경도(주소 지오코딩 결과)
+    latitude DECIMAL(10,7) NOT NULL,
+    longitude DECIMAL(10,7) NOT NULL,
+    min_order_price INT NOT NULL,
+    opens_at TIME NOT NULL,
+    closes_at TIME NOT NULL,
+    delivery_fee INT NOT NULL DEFAULT 0, -- 배달비
     -- 폐업(논리 삭제) 전용 라이프사이클 상태
-    active BOOLEAN DEFAULT TRUE, -- 영업 OR 폐업
+    active BOOLEAN NOT NULL DEFAULT TRUE, -- 영업 OR 폐업
     retired_at TIMESTAMP DEFAULT NULL,                   -- 폐업 처리 시각 기록
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_id) REFERENCES users(id)
 );
+
+-- 검색/정렬 최적화를 위한 인덱스
+CREATE INDEX idx_stores_active_name     ON stores (active, name);
+CREATE INDEX idx_stores_active_lat_lng  ON stores (active, latitude, longitude);
 
 CREATE TABLE store_notices (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -70,8 +87,15 @@ CREATE TABLE store_categories (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     store_id BIGINT NOT NULL,
     category VARCHAR(50) NOT NULL,
-    FOREIGN KEY (store_id) REFERENCES stores(id)
+    FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
 );
+
+ALTER TABLE store_categories MODIFY category VARCHAR(32) NOT NULL;
+
+ALTER TABLE store_categories
+    ADD CONSTRAINT uk_store_category UNIQUE (store_id, category);
+
+CREATE INDEX idx_store_categories_category ON store_categories (category);
 
 CREATE TABLE reviews (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -247,3 +271,17 @@ CREATE TABLE review_images (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (review_id) REFERENCES reviews(id)
 );
+
+-- 임시 OWNER 유저 생성
+INSERT INTO users (email, password, name, role, created_at)
+VALUES ('owner1@example.com', '{bcrypt-or-temp}', '홍길동', 'OWNER', NOW());
+
+-- 방금 생성된 OWNER의 id를 변수에 저장
+SET @owner_id := LAST_INSERT_ID();
+
+-- 임시 USER 유저 생성
+INSERT INTO users (email, password, name, role, created_at)
+VALUES ('user1@example.com', '{bcrypt-or-temp}', '김철수', 'USER', NOW());
+
+-- 생성된 USER id 확인
+SELECT LAST_INSERT_ID() AS new_user_id;
