@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.users.entity;
 
+
 import com.example.finalproject.domain.users.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
@@ -27,10 +28,8 @@ public class Users {
     private String nickname;
     private boolean deleted;
 
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
 
     @PrePersist void onCreate(){ createdAt = updatedAt = LocalDateTime.now(); }
     @PreUpdate void onUpdate(){ updatedAt = LocalDateTime.now(); }

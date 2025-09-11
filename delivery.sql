@@ -28,6 +28,24 @@ CREATE TABLE users (
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
+-- 2. 가게(Stores) - 수정 예정
+CREATE TABLE stores (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        owner_id BIGINT,
+                        name VARCHAR(100),
+                        address VARCHAR(255),
+                        min_order_price INT,
+                        opens_at TIME,
+                        closes_at TIME,
+                        delivery_fee BIGINT DEFAULT 0, -- 배달비
+    -- 폐업(논리 삭제) 전용 라이프사이클 상태
+                        active BOOLEAN DEFAULT TRUE, -- 영업 OR 폐업
+                        retired_at TIMESTAMP DEFAULT NULL,                   -- 폐업 처리 시각 기록
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (owner_id) REFERENCES users(id)
+);
+
 CREATE TABLE user_stars (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -90,12 +108,14 @@ CREATE TABLE store_categories (
     FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
 );
 
+
 ALTER TABLE store_categories MODIFY category VARCHAR(32) NOT NULL;
 
 ALTER TABLE store_categories
     ADD CONSTRAINT uk_store_category UNIQUE (store_id, category);
 
 CREATE INDEX idx_store_categories_category ON store_categories (category);
+
 
 CREATE TABLE reviews (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -158,6 +178,7 @@ CREATE TABLE menu_option_choices (
     extra_price INT DEFAULT 0,          -- 추가 요금
     FOREIGN KEY (group_id) REFERENCES menu_options(id) ON DELETE CASCADE
 );
+
 
 -- 4. 주문(Orders)
 CREATE TABLE orders (

@@ -21,6 +21,7 @@ import java.util.Set;
 public class Stores {
 
     // 기본 키 (PK), Auto Increment
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -112,4 +113,5 @@ public class Stores {
     public boolean isActive() {
         return Boolean.TRUE.equals(this.active);
     }
+
 }

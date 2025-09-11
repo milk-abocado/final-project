@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.stores.repository;
 
+
 import com.example.finalproject.domain.stores.category.StoreCategory;
 import com.example.finalproject.domain.stores.entity.Stores;
 import org.springframework.data.domain.Page;
