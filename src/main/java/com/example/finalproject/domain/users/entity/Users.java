@@ -35,4 +35,8 @@ public class Users {
     public Object getUsername() {
         return null;
     }
+
+    public Object getUserId() {
+        return null;
+    }
 }
