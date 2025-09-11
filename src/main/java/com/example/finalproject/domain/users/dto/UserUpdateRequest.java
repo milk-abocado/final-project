@@ -1,4 +1,4 @@
-package com.example.finalproject.domain.auth.dto;
+package com.example.finalproject.domain.users.dto;
 
 import lombok.*;
 
