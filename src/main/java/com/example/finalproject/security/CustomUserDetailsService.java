@@ -1,8 +1,8 @@
-package com.example.finalproject.global.security;
+package com.example.finalproject.security;
 
-import com.example.finalproject.global.Security.CustomUserDetails;
-import com.example.finalproject.domain.users.entity.User;
-import com.example.finalproject.domain.users.repository.UserRepository;
+import com.example.finalproject.domain.users.entity.Users;
+import com.example.finalproject.domain.users.repository.UsersRepository;
+import com.example.finalproject.security.CustomUserDetails;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

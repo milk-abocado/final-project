@@ -5,6 +5,7 @@ import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.entity.Searches;
 import com.example.finalproject.domain.searches.exception.SearchesException;
 import com.example.finalproject.domain.searches.repository.SearchesRepository;
+import com.example.finalproject.domain.users.repository.UsersRepository;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

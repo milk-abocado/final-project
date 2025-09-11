@@ -1,4 +1,4 @@
-package com.example.finalproject.Security;
+package com.example.finalproject.security;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,6 +11,7 @@ public class CustomUserDetails implements UserDetails {
     private final String username;
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities; //권한은 기본적으로 ROLE_USER 하나만 부여
+    public Long getUserId;
 
     public CustomUserDetails(Long userId, String username, String password, Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;

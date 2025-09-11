@@ -1,6 +1,6 @@
 package com.example.finalproject.domain.searches.controller;
 
-import com.example.finalproject.Security.CustomUserDetails;
+import com.example.finalproject.security.CustomUserDetails;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
