@@ -1,5 +1,7 @@
 package com.example.finalproject.domain.auth.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Getter
@@ -8,7 +10,17 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class UserProfileResponse {
-    private Long userId;
+    @Email
+    @NotBlank
     private String email;
+    @NotBlank
+    private String password;
+    @NotBlank
+    private String name;
+    @NotBlank
     private String nickname;
-    private String role; }
+    @NotBlank
+    private String role;
+    @NotBlank
+    private String phone_number;
+}
