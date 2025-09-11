@@ -17,9 +17,12 @@ import java.util.stream.Collectors;
 @Transactional
 public class SearchesService {
     private final SearchesRepository searchesRepository;
+    private final UsersRepository usersRepository;
 
-    public SearchesService(SearchesRepository searchesRepository) {
+    public SearchesService(SearchesRepository searchesRepository,
+                           UsersRepository usersRepository) {
         this.searchesRepository = searchesRepository;
+        this.usersRepository = usersRepository;
     }
 
     public SearchesResponseDto saveOrUpdate(SearchesRequestDto request) throws BadRequestException {

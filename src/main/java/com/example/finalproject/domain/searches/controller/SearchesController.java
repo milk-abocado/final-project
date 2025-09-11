@@ -1,8 +1,10 @@
 package com.example.finalproject.domain.searches.controller;
 
+import com.example.finalproject.Security.CustomUserDetails;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
+import com.example.finalproject.global.security.CustomUserDetails; //UserDetails
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,14 +24,22 @@ public class SearchesController {
 
     //검색 기록 등록 기능
     @PostMapping
-    public ResponseEntity<SearchesResponseDto> create(@RequestBody SearchesRequestDto request) throws BadRequestException {
+    public ResponseEntity<SearchesResponseDto> create(
+            @RequestBody SearchesRequestDto request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        request.setUserId(userDetails.getUserId());
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(201).body(response);
     }
 
     //검색 기록 업데이트 기능
     @PutMapping
-    public ResponseEntity<SearchesResponseDto> update(@RequestBody SearchesRequestDto request) throws BadRequestException {
+    public ResponseEntity<SearchesResponseDto> update(
+            @RequestBody SearchesRequestDto request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        request.setUserId(userDetails.getUserId); //dto에 userId 주입
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(200).body(response);
     }
@@ -43,7 +53,7 @@ public class SearchesController {
             @RequestParam(required = false, defaultValue = "updatedAt") String sort,
             @AuthenticationPrincipal CustomUserDetails userDetails //로그인 인증에서 유저 정보 받기
     ) {
-        Long userId = userDetails.getuserId();
+        Long userId = userDetails.getUserId();
 
         List<SearchesResponseDto> result = searchesService.getMySearches(userId, region, sort);
 
@@ -61,7 +71,7 @@ public class SearchesController {
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        SearchesResponseDto response = searchesService.getSearchById(userDetails.getuserId(), id);
+        SearchesResponseDto response = searchesService.getSearchById(userDetails.getUserId(), id);
         return ResponseEntity.ok(response);
     }
 
@@ -70,7 +80,7 @@ public class SearchesController {
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        searchesService.deleteSearches(userDetails.getuserId(), id);
+        searchesService.deleteSearches(userDetails.getUserId(), id);
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", "검색 기록이 삭제되었습니다.");
