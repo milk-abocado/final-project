@@ -34,19 +34,21 @@ public class SecurityConfig {
         return authProvider;
     }
 
+    // 추 후 수 정 필 요
     // Security FilterChain 설정
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf().disable()
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/searches/**").authenticated() // 검색 API는 로그인 필요
-                        .anyRequest().permitAll()
-                )
-                .formLogin() // 기본 로그인 폼 사용
-                .and()
-                .logout();
+    // @Bean
+    // public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    // http.csrf().disable()
+    //            .authorizeHttpRequests(auth -> auth
+    //                    .requestMatchers("/searches/**").authenticated() // 검색 API는 로그인 필요
+    //                    .anyRequest().permitAll()
+    //            )
+    //            .formLogin() // 기본 로그인 폼 사용
+    //            .and()
+    //            .logout();
 
-        return http.build();
-    }
+    //    return http.build();
+    // }
+
 }
 
