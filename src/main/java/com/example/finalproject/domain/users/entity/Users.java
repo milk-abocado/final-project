@@ -8,31 +8,29 @@ import java.time.LocalDateTime;
 
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor @Builder
-@Entity @Table(
-        name = "users",
-        indexes = { @Index(name = "ux_users_email", columnList = "email", unique = true) }
-)
+@Entity
+@Table(name = "users")
 public class Users {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "password", nullable = false)
     private String password;
 
-    @Column(nullable = false, length = 30)
-    private String name;
-
-    @Column(length = 30)
+    @Column(name = "nickname", nullable = false)
     private String nickname;
 
-    @Column(name = "phone_number", length = 20)
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "phone_number")
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
+    @Column(name = "role", nullable = false)
     private UserRole role;
 
     @Column(name = "social_login", nullable = false)
@@ -41,20 +39,16 @@ public class Users {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    void onCreate() {
-        createdAt = updatedAt = LocalDateTime.now();
-        if (role == null) role = UserRole.USER;   // 기본 USER
-        // 가입은 일반 가입이므로 false
-        socialLogin = (socialLogin);              // 명시적으로 유지(기본 false)
+    @PrePersist void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) createdAt = now;
+        if (updatedAt == null) updatedAt = now;
     }
-
-    @PreUpdate
-    void onUpdate() { updatedAt = LocalDateTime.now(); }
+    @PreUpdate void onUpdate() { updatedAt = LocalDateTime.now(); }
 }
