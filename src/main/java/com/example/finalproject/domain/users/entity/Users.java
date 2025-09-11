@@ -20,10 +20,8 @@ public class Users {
     @Column(nullable = false)
     private String password;
 
-
     @Enumerated(EnumType.STRING)
     private UserRole role = UserRole.USER;
-
 
     private String nickname;
     private boolean deleted;

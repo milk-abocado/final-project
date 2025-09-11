@@ -13,9 +13,9 @@ public class CartsItemResponse {
     private String cartItemId = UUID.randomUUID().toString();
     private Long menuId;
     private String menuName;
-    private int amount;
-    private int price;
-    private int totalPrice;
+    private Integer amount;
+    private Integer price;
+    private Integer totalPrice;
     private List<CartsOptionResponse> options;
     private LocalDateTime updatedAt;
 }
