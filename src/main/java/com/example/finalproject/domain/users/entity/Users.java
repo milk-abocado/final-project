@@ -65,4 +65,12 @@ public class Users {
     void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public Object getUsername() {
+        return null;
+    }
+
+    public Object getUserId() {
+        return null;
+    }
 }
