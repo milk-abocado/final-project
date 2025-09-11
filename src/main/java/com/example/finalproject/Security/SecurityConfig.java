@@ -41,7 +41,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf().disable()
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/searches/**").authenticated() // ✅ 검색 API는 로그인 필요
+                        .requestMatchers("/searches/**").authenticated() // 검색 API는 로그인 필요
                         .anyRequest().permitAll()
                 )
                 .formLogin() // 기본 로그인 폼 사용

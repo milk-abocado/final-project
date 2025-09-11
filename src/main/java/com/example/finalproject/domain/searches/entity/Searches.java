@@ -23,6 +23,7 @@ public class Searches {
     @Column(nullable = false, length = 50)
     private String region;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer count = 1;
 

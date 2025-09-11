@@ -1,6 +1,6 @@
 package com.example.finalproject.global.security;
 
-import com.example.finalproject.Security.CustomUserDetails;
+import com.example.finalproject.global.Security.CustomUserDetails;
 import com.example.finalproject.domain.users.entity.User;
 import com.example.finalproject.domain.users.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,7 +19,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Users users = userRepository.findByUsername(username)
+        Users users = usersRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + username));
 
         return new CustomUserDetails(

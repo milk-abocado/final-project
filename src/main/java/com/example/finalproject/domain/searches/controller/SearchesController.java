@@ -4,7 +4,6 @@ import com.example.finalproject.Security.CustomUserDetails;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
-import com.example.finalproject.global.security.CustomUserDetails; //UserDetails
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
