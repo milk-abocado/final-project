@@ -1,3 +1,6 @@
+
+CREATE DATABASE IF NOT EXISTS delivery;
+
 -- 0) 안전 옵션 (테스트용)
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -6,6 +9,7 @@ ALTER TABLE stores AUTO_INCREMENT = 0;
 
 -- 1) 스키마 생성 및 선택
 CREATE SCHEMA IF NOT EXISTS delivery;
+
 USE delivery;
 
 -- 2) 사용자(Users)
