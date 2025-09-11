@@ -1,42 +1,34 @@
 package com.example.finalproject.domain.users.entity;
 
+
+import com.example.finalproject.domain.users.UserRole;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
-@Entity
-@Table(name = "users")
+
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Entity @Table(name = "users")
 public class Users {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
 
     @Column(unique = true, nullable = false)
     private String email;
-
     @Column(nullable = false)
     private String password;
 
-    private String name;
-    private String nickname;
-    private String phoneNumber;
-    private String address; // 추가
-
     @Enumerated(EnumType.STRING)
-    private Role role; // USER, OWNER, ADMIN
+    private UserRole role = UserRole.USER;
 
-    private Boolean socialLogin = false;
-    private Boolean allowNotifications = false;
-    private Boolean isDeleted = false;
+    private String nickname;
+    private boolean deleted;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public enum Role {
-        USER, OWNER, ADMIN
-    }
+    @PrePersist void onCreate(){ createdAt = updatedAt = LocalDateTime.now(); }
+    @PreUpdate void onUpdate(){ updatedAt = LocalDateTime.now(); }
 }
