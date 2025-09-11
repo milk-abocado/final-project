@@ -2,7 +2,7 @@ package com.example.finalproject.domain.security;
 
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
-import com.example.finalproject.security.CustomUserDetails;
+import com.example.finalproject.domain.security.CustomUserDetails;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

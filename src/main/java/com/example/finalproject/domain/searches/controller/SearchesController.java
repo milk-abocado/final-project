@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/searches")
-public class SearchesController {
+public class SearchesController<CustomUserDetails> {
     private final SearchesService searchesService;
 
     public SearchesController(SearchesService searchesService) {
@@ -27,7 +27,7 @@ public class SearchesController {
             @RequestBody SearchesRequestDto request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) throws BadRequestException {
-        request.setUserId(userDetails.getUserId());
+        request.setUserId(userDetails.getUserId);
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(201).body(response);
     }
