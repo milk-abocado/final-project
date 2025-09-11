@@ -1,4 +1,3 @@
-// src/main/java/com/example/finalproject/domain/auth/AuthService.java
 package com.example.finalproject.domain.auth.service;
 
 import com.example.finalproject.domain.common.mail.SmtpMailSender;
@@ -35,8 +34,8 @@ public class AuthService {
     private final JwtProvider jwtProvider;
     private final CodeStore codeStore;
     private final TokenStore tokenStore;
-    private final SmtpMailSender mailSender;     // SMTP 메일 발송기
-    private final OAuthService oAuthService;     // 카카오/네이버 액세스 토큰 검증
+    private final SmtpMailSender mailSender; // SMTP 메일 발송기
+    private final OAuthService oAuthService; // 카카오/네이버 액세스 토큰 검증
 
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
@@ -93,14 +92,38 @@ public class AuthService {
         );
     }
 
-    public Map<String, Object> refresh(Long userId, TokenRefreshRequest req) {
-        if (!tokenStore.isRefreshValid(userId, req.getRefreshToken()))
-            throw new IllegalStateException("INVALID_REFRESH");
+    // 컨트롤러에서 body를 그대로 받을 때 편의를 위한 오버로드
+    public Map<String, Object> refresh(TokenRefreshRequest req) {
+        return refresh(req.getRefreshToken());
+    }
 
-        // rotate (이전 refresh 무효화: 같은 키에 새 토큰 저장)
-        String newAccess = jwtProvider.createAccess(userId, "USER");
-        String newRefresh = jwtProvider.createRefresh(userId);
-        tokenStore.saveRefresh(userId, newRefresh, 60L * 60 * 24 * 7);
+    // 실제 재발급 로직: refresh 토큰만으로 처리 (userId 헤더 없이)
+    public Map<String, Object> refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new IllegalArgumentException("INVALID_REFRESH");
+        }
+
+        // 1) 리프레시 토큰 파싱(서명/만료/typ=refresh 확인) → userId 추출
+        var claims = jwtProvider.parseRefresh(refreshToken); // JwtProvider에 구현 필요
+        Long userId = claims.get("uid", Long.class);
+        if (userId == null) {
+            // subject에 userId를 넣어뒀던 경우 대비
+            userId = Long.parseLong(claims.getSubject());
+        }
+
+        // 2) 저장소(예: Redis)에 있는 유효 리프레시인지 확인
+        if (!tokenStore.isRefreshValid(userId, refreshToken)) {
+            throw new IllegalStateException("INVALID_REFRESH");
+        }
+
+        // 3) 실제 유저 조회해서 Role 사용 (하드코딩 금지)
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
+
+        // 4) 토큰 회전(rotate)
+        String newAccess  = jwtProvider.createAccess(user.getId(), user.getRole().name());
+        String newRefresh = jwtProvider.createRefresh(user.getId());
+        tokenStore.saveRefresh(user.getId(), newRefresh, 60L * 60 * 24 * 7);
 
         return Map.of(
                 "access_token", newAccess,

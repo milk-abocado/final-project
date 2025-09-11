@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.auth.exception;
 
+import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
@@ -38,11 +39,11 @@ public class AuthExceptionHandler {
         return ResponseEntity.status(AuthErrorCode.PARAMETER_MISSING.status).body(body);
     }
 
-//    @ExceptionHandler(AccessDeniedException.class)
-//    public ResponseEntity<AuthErrorResponse> handleDenied(AccessDeniedException ex, HttpServletRequest req) {
-//        var body = AuthErrorResponse.of(AuthErrorCode.INVALID_ACCESS_TOKEN, ex.getMessage(), req.getRequestURI(), null, null);
-//        return ResponseEntity.status(AuthErrorCode.INVALID_ACCESS_TOKEN.status).body(body);
-//    }
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<AuthErrorResponse> handleDenied(AccessDeniedException ex, HttpServletRequest req) {
+        var body = AuthErrorResponse.of(AuthErrorCode.INVALID_ACCESS_TOKEN, ex.getMessage(), req.getRequestURI(), null, null);
+        return ResponseEntity.status(AuthErrorCode.INVALID_ACCESS_TOKEN.status).body(body);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<AuthErrorResponse> handleEtc(Exception ex, HttpServletRequest req) {

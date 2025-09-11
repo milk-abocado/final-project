@@ -13,4 +13,8 @@ public class SignupRequest {
     @Email @NotBlank private String email;
     @NotBlank private String password;
     @NotBlank private String name;
-    @NotBlank private String nickname; }
+    @NotBlank private String nickname;
+    @NotBlank private String role;
+    @NotBlank private String phone_number;
+
+}
