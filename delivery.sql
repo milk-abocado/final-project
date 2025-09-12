@@ -276,20 +276,6 @@ CREATE TABLE review_images (
     FOREIGN KEY (review_id) REFERENCES reviews (id)
 );
 
--- 임시 OWNER 유저 생성
-INSERT INTO users (email, password, name, role, created_at)
-VALUES ('owner1@example.com', '{bcrypt-or-temp}', '홍길동', 'OWNER', NOW());
-
--- 방금 생성된 OWNER의 id를 변수에 저장
-SET @owner_id := LAST_INSERT_ID();
-
--- 임시 USER 유저 생성
-INSERT INTO users (email, password, name, role, created_at)
-VALUES ('user1@example.com', '{bcrypt-or-temp}', '김철수', 'USER', NOW());
-
--- 생성된 USER id 확인
-SELECT LAST_INSERT_ID() AS new_user_id;
-
 CREATE TABLE social_accounts (
     id                BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id           BIGINT       NOT NULL,
@@ -309,3 +295,42 @@ CREATE TABLE social_accounts (
   DEFAULT CHARSET = utf8mb4;
 
 CREATE INDEX idx_social_user ON social_accounts (user_id);
+
+ALTER TABLE users ADD COLUMN address VARCHAR(100);
+
+ALTER TABLE reviews
+    ADD COLUMN deleted_at DATETIME NULL,
+    ADD COLUMN deleted_by VARCHAR(16) NULL,
+    ADD COLUMN updated_at DATETIME NULL;
+ALTER TABLE reviews
+    ADD COLUMN updated_at DATETIME NULL;
+
+CREATE INDEX idx_reviews_is_deleted ON reviews (is_deleted);
+
+# -- 임시 OWNER 유저 생성
+# INSERT INTO users (email, password, name, role, created_at)
+# VALUES ('owner1@example.com', '{bcrypt-or-temp}', '홍길동', 'OWNER', NOW());
+#
+# -- 방금 생성된 OWNER의 id를 변수에 저장
+# SET @owner_id := LAST_INSERT_ID();
+#
+# -- 임시 USER 유저 생성
+# INSERT INTO users (email, password, name, role, created_at)
+# VALUES ('user1@example.com', '{bcrypt-or-temp}', '김철수', 'USER', NOW());
+#
+# -- 생성된 USER id 확인
+# SELECT LAST_INSERT_ID() AS new_user_id;
+#
+# INSERT INTO users (email, password, name, role, created_at)
+# VALUES ('user2@example.com', '{bcrypt-or-temp}', '이영희', 'USER', NOW());
+#
+# -- 생성된 USER id 확인
+# SELECT LAST_INSERT_ID() AS new_user_id;
+#
+# -- 테스트용 메뉴 추가
+# INSERT INTO menus (store_id, name, price, status) VALUES (1, '김밥', 5000, 'ACTIVE');
+# INSERT INTO menus (store_id, name, price, status) VALUES (1, '라면', 3000, 'ACTIVE');
+# INSERT INTO menus (store_id, name, price, status) VALUES (1, '떡볶이', 4000, 'ACTIVE');
+#
+# INSERT INTO menus (store_id, name, price, status) VALUES (2, '명란파스타', 15000, 'ACTIVE');
+# INSERT INTO menus (store_id, name, price, status) VALUES (2, '해물오일파스타', 18000, 'ACTIVE');
