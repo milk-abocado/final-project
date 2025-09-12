@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface CouponsRepository extends JpaRepository<Coupons, Long> {
     Optional<Coupons> findByCode(String code); // 쿠폰 코드로 조회
+    boolean existsByCode(String code);
 }

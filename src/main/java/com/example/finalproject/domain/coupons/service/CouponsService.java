@@ -29,6 +29,10 @@ public class CouponsService {
      //쿠폰 발급 (관리자용)
     @Transactional
     public CouponsDtos.CouponResponse createCoupon(CouponsDtos.CreateRequest request) {
+
+        if (couponsRepository.existsByCode(request.getCode())) {
+            throw new CouponException("이미 존재하는 쿠폰 코드입니다: " + request.getCode());
+        }
         Coupons coupon = new Coupons(
                 request.getCode(),
                 Enum.valueOf(CouponType.class, request.getType()),
