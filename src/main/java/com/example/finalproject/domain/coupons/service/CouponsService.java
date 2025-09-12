@@ -11,9 +11,9 @@ import com.example.finalproject.domain.coupons.repository.UserCouponsRepository;
 import com.example.finalproject.domain.users.entity.Users;
 
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -83,6 +83,7 @@ public class CouponsService {
 
 
      //유저 보유 쿠폰 조회
+    @Transactional(readOnly = true)
     public CouponsDtos.UserCouponListResponse getUserCoupons(Long userId) {
         List<UserCoupons> userCoupons = userCouponsRepository.findByUserId(userId);
 
