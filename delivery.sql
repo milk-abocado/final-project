@@ -215,6 +215,7 @@ CREATE TABLE coupons (
     type           ENUM ('RATE', 'AMOUNT') NOT NULL, -- RATE / AMOUNT
     discount_value INT,
     max_discount   INT,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expire_at      TIMESTAMP
 );
 
@@ -223,6 +224,7 @@ CREATE TABLE user_coupons (
     user_id    BIGINT NOT NULL,
     coupon_id  BIGINT NOT NULL,
     is_used    BOOLEAN   DEFAULT FALSE,
+    used_at    TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id),
     FOREIGN KEY (coupon_id) REFERENCES coupons (id)
@@ -308,6 +310,9 @@ ALTER TABLE reviews
     ADD COLUMN updated_at DATETIME NULL;
 ALTER TABLE reviews
     ADD COLUMN updated_at DATETIME NULL;
+
+ALTER TABLE user_coupons
+    ADD COLUMN used_at TIMESTAMP NULL;
 
 CREATE INDEX idx_reviews_is_deleted ON reviews (is_deleted);
 
