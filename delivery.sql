@@ -116,13 +116,17 @@ CREATE TABLE reviews (
 
 CREATE TABLE review_comments (
     id         BIGINT AUTO_INCREMENT PRIMARY KEY,
-    review_id  BIGINT NOT NULL,
-    owner_id   BIGINT NOT NULL,
-    content    TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (review_id) REFERENCES reviews (id) ON DELETE CASCADE,
-    FOREIGN KEY (owner_id) REFERENCES users (id)
+    review_id  BIGINT        NOT NULL UNIQUE,
+    owner_id   BIGINT        NOT NULL,
+    store_id   BIGINT        NOT NULL,
+    content    VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP     NULL,
+    is_deleted BOOLEAN       NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMP     NULL,
+    CONSTRAINT fk_rr_review FOREIGN KEY (review_id) REFERENCES reviews (id),
+    CONSTRAINT fk_rr_owner FOREIGN KEY (owner_id) REFERENCES users (id),
+    CONSTRAINT fk_rr_store FOREIGN KEY (store_id) REFERENCES stores (id)
 );
 
 -- 3. 메뉴(Menus)

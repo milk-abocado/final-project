@@ -6,7 +6,10 @@ import com.example.finalproject.domain.reviews.dto.request.ReviewsCreateRequest;
 import com.example.finalproject.domain.reviews.dto.request.ReviewsUpdateRequest;
 import com.example.finalproject.domain.reviews.dto.response.ReviewsItemResponse;
 import com.example.finalproject.domain.reviews.dto.response.ReviewsUpdateResponse;
+import com.example.finalproject.domain.reviews.dto.response.ReviewsWithCommentResponse;
 import com.example.finalproject.domain.reviews.entity.Reviews;
+import com.example.finalproject.domain.reviews.entity.ReviewsComments;
+import com.example.finalproject.domain.reviews.repository.ReviewsCommentsRepository;
 import com.example.finalproject.domain.reviews.repository.ReviewsRepository;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.exception.ApiException;
@@ -17,7 +20,9 @@ import com.example.finalproject.domain.users.repository.UsersRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * ReviewsService
@@ -41,6 +47,7 @@ public class ReviewsService {
     private final StoresRepository storesRepository;
     private final UsersRepository usersRepository;
     private final OrdersRepository ordersRepository;
+    private final ReviewsCommentsRepository reviewsCommentsRepository;
 
     private static final long USER_DELETE_WINDOW_HOURS = 24;      // 작성자 자가 삭제 허용 창
     private static final long OWNER_RETENTION_YEARS   = 1;        // 오너 소프트삭제 보관기간
@@ -171,6 +178,74 @@ public class ReviewsService {
                 .findByStoreIdAndIsDeletedFalseAndRatingBetweenOrderByCreatedAtDesc(
                         storeId, minRating, maxRating, PageRequest.of(page, size)
                 ).map(this::toItemResponse);
+    }
+
+    /**
+     * 특정 가게의 리뷰 목록과 해당 리뷰에 달린 사장님 댓글을 조회
+     * - 리뷰는 삭제되지 않은 리뷰만 조회하고, 별점 범위(minRating, maxRating)에 맞는 리뷰만 반환
+     * - 리뷰에 달린 사장님 댓글도 함께 조회하여 반환
+     *
+     * @param storeId    조회할 가게 ID
+     * @param minRating  최소 별점 (1 ~ 5 사이)
+     * @param maxRating  최대 별점 (1 ~ 5 사이)
+     * @param page       페이지 번호 (0부터 시작)
+     * @param size       페이지 크기
+     * @return           리뷰와 댓글을 포함한 페이지 응답
+     */
+    public Page<ReviewsWithCommentResponse> getStoreReviewsWithComment(
+            Long storeId, Integer minRating, Integer maxRating, int page, int size
+    ) {
+        int min = (minRating == null) ? 1 : minRating;
+        int max = (maxRating == null) ? 5 : maxRating;
+        if (min > max) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "별점 범위가 올바르지 않습니다.");
+        }
+
+        storesRepository.findById(storeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Reviews> reviewPage =
+                reviewsRepository.findByStoreIdAndIsDeletedFalseAndRatingBetweenOrderByCreatedAtDesc(
+                        storeId, min, max, pageable
+                );
+
+        if (reviewPage.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        List<Long> reviewIds = reviewPage.stream().map(Reviews::getId).toList();
+        List<ReviewsComments> replies =
+                reviewsCommentsRepository.findByReview_IdInAndIsDeletedFalse(reviewIds);
+
+        Map<Long, ReviewsComments> replyMap = replies.stream()
+                .collect(Collectors.toMap(rc -> rc.getReview().getId(), rc -> rc));
+
+        List<ReviewsWithCommentResponse> items = reviewPage.getContent().stream()
+                .map(r -> {
+                    ReviewsComments rc = replyMap.get(r.getId());
+                    ReviewsWithCommentResponse.OwnerCommentDto replyDto = (rc == null) ? null :
+                            new ReviewsWithCommentResponse.OwnerCommentDto(
+                                    rc.getId(),
+                                    rc.getOwner().getId(),
+                                    rc.getContent(),
+                                    rc.getCreatedAt(),
+                                    rc.getUpdatedAt()
+                            );
+                    return new ReviewsWithCommentResponse(
+                            r.getId(),
+                            r.getStore().getId(),
+                            r.getUser().getId(),
+                            r.getRating(),
+                            r.getContent(),
+                            r.getCreatedAt(),
+                            replyDto
+                    );
+                })
+                .toList();
+
+        return new PageImpl<>(items, pageable, reviewPage.getTotalElements());
     }
 
     /**

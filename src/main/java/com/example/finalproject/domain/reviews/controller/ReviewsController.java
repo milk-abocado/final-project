@@ -4,6 +4,7 @@ import com.example.finalproject.domain.reviews.dto.request.ReviewsCreateRequest;
 import com.example.finalproject.domain.reviews.dto.request.ReviewsUpdateRequest;
 import com.example.finalproject.domain.reviews.dto.response.ReviewsItemResponse;
 import com.example.finalproject.domain.reviews.dto.response.ReviewsUpdateResponse;
+import com.example.finalproject.domain.reviews.dto.response.ReviewsWithCommentResponse;
 import com.example.finalproject.domain.reviews.service.ReviewsService;
 import com.example.finalproject.domain.stores.exception.ApiException;
 import com.example.finalproject.domain.stores.exception.ErrorCode;
@@ -101,6 +102,24 @@ public class ReviewsController {
 
         Page<ReviewsItemResponse> reviews = reviewsService.getReviewsByOwner(userId, storeId, minRating, maxRating, page, size);
         return ResponseEntity.ok(reviews);
+    }
+
+    /**
+     * 리뷰 + 사장님 답글 같이 보기
+     * - 해당 가게의 리뷰와 그에 달린 사장님 댓글을 함께 조회
+     * - 응답: 페이지네이션된 리뷰와 댓글 목록
+     */
+    @GetMapping("/with-comment")
+    public ResponseEntity<Page<ReviewsWithCommentResponse>> listWithReply(
+            @PathVariable Long storeId,
+            @RequestParam(required = false) Integer minRating,
+            @RequestParam(required = false) Integer maxRating,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Page<ReviewsWithCommentResponse> res =
+                reviewsService.getStoreReviewsWithComment(storeId, minRating, maxRating, page, size);
+        return ResponseEntity.ok(res);
     }
 
     /**
