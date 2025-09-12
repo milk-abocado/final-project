@@ -60,4 +60,14 @@ public class CouponsDtos {
         private Long userId;
         private List<UserCouponResponse> coupons;
     }
+
+
+    //쿠폰 사용 요청
+    @Getter
+    @Setter
+    public static class UseCouponRequest {
+        private Long userId;
+        private Long orderId;
+        private String couponCode;
+    }
 }
