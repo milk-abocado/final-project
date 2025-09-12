@@ -107,21 +107,22 @@ public class CouponsService {
 
 
      // 쿠폰 사용 처리
-    @Transactional
-    public void useCoupon(Long userCouponId) {
-        UserCoupons userCoupon = userCouponsRepository.findById(userCouponId)
-                .orElseThrow(() -> new CouponException("사용자 쿠폰이 존재하지 않습니다."));
+     @Transactional
+     public void useCoupon(Long userId, String couponCode, Long orderId) {
+         UserCoupons userCoupon = userCouponsRepository
+                 .findByUserIdAndCouponCode(userId, couponCode)
+                 .orElseThrow(() -> new CouponException("사용자 쿠폰이 존재하지 않습니다."));
 
-        if (userCoupon.isUsed()) {
-            throw new CouponException("이미 사용된 쿠폰입니다.");
-        }
+         if (userCoupon.isUsed()) {
+             throw new CouponException("이미 사용된 쿠폰입니다.");
+         }
 
-        if (userCoupon.getCoupon().getExpireAt() != null &&
-                userCoupon.getCoupon().getExpireAt().isBefore(LocalDateTime.now())) {
-            throw new CouponException("만료된 쿠폰입니다.");
-        }
+         if (userCoupon.getCoupon().getExpireAt() != null &&
+                 userCoupon.getCoupon().getExpireAt().isBefore(LocalDateTime.now())) {
+             throw new CouponException("만료된 쿠폰입니다.");
+         }
 
-        userCoupon.useCoupon(); // isUsed usedAt
-        userCouponsRepository.save(userCoupon);
-    }
+         userCoupon.useCoupon();
+         userCouponsRepository.save(userCoupon);
+     }
 }
