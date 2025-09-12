@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.orders.controller;
 
+import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.orders.dto.request.OrderStatusRequest;
 import com.example.finalproject.domain.orders.dto.request.OrdersRequest;
 import com.example.finalproject.domain.orders.dto.response.OrderStatusResponse;
@@ -59,8 +60,26 @@ public class OrdersController {
     @GetMapping("/{orderId}")
     public ResponseEntity<?> getOrder(@PathVariable Long orderId) {
         try{
-        OrdersResponse resp = ordersService.getOrder(orderId);
-        return ResponseEntity.ok(resp);
+            OrdersResponse resp = ordersService.getOrder(orderId);
+            return ResponseEntity.ok(resp);
+        } catch (IllegalArgumentException e) {
+            return str(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+        }
+    }
+
+    // 주문 내역 삭제
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<?> deleteOrder(
+            @RequestHeader Long userId,
+            @PathVariable Long orderId)
+    {
+        try{
+            ordersService.deleteOrder(userId, orderId);
+            return ResponseEntity.ok().build();
+        } catch (AccessDeniedException e) {
+            return str(HttpStatus.FORBIDDEN, e.getMessage());
         } catch (IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (Exception e) {
