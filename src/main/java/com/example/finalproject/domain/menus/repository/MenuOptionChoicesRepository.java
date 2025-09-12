@@ -6,5 +6,5 @@ import org.springframework.data.repository.CrudRepository;
 import java.util.List;
 
 public interface MenuOptionChoicesRepository extends CrudRepository<MenuOptionChoices, Long> {
-    List<MenuOptionChoices> findByGroup_Id(Long groupId);
+    List<MenuOptionChoices> findByGroupId(Long groupId);
 }
