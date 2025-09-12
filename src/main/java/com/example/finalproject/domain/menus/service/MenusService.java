@@ -83,8 +83,6 @@ public class MenusService {
 
     @Transactional
     public MenusResponse updateMenu(Long menuId, Long storeId, MenusRequest request) {
-        Stores store = storesRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
 
         Menus menu = menusRepository.findByIdAndStoreId(menuId, storeId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 가게의 메뉴가 존재하지 않습니다."));

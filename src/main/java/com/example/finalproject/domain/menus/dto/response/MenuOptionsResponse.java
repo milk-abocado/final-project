@@ -1,6 +1,5 @@
 package com.example.finalproject.domain.menus.dto.response;
 
-import com.example.finalproject.domain.menus.entity.MenuOptionChoices;
 import com.example.finalproject.domain.menus.entity.MenuOptions;
 import lombok.Getter;
 import lombok.Setter;
