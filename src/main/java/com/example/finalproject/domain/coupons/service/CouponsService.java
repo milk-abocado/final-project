@@ -9,9 +9,9 @@ import com.example.finalproject.domain.coupons.exception.CouponException;
 import com.example.finalproject.domain.coupons.repository.CouponsRepository;
 import com.example.finalproject.domain.coupons.repository.UserCouponsRepository;
 import com.example.finalproject.domain.users.entity.Users;
+import org.springframework.transaction.annotation.Transactional;
 
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -83,27 +83,28 @@ public class CouponsService {
 
 
      //유저 보유 쿠폰 조회
-    public CouponsDtos.UserCouponListResponse getUserCoupons(Long userId) {
-        List<UserCoupons> userCoupons = userCouponsRepository.findByUserId(userId);
+     @Transactional(readOnly = true)
+     public CouponsDtos.UserCouponListResponse getUserCoupons(Long userId) {
+         List<UserCoupons> userCoupons = userCouponsRepository.findByUserId(userId);
 
-        List<CouponsDtos.UserCouponResponse> coupons = userCoupons.stream().map(uc -> {
-            CouponsDtos.UserCouponResponse dto = new CouponsDtos.UserCouponResponse();
-            dto.setUserCouponId(uc.getId());
-            dto.setUserId(uc.getUser().getId());
-            dto.setCouponId(uc.getCoupon().getId());
-            dto.setCouponCode(uc.getCoupon().getCode());
-            dto.setUsed(uc.isUsed());
-            dto.setCreatedAt(uc.getCreatedAt());
-            dto.setUsedAt(uc.getUsedAt());
-            return dto;
-        }).toList();
+         List<CouponsDtos.UserCouponResponse> coupons = userCoupons.stream().map(uc -> {
+             CouponsDtos.UserCouponResponse dto = new CouponsDtos.UserCouponResponse();
+             dto.setUserCouponId(uc.getId());
+             dto.setUserId(uc.getUser().getId());
+             dto.setCouponId(uc.getCoupon().getId());
+             dto.setCouponCode(uc.getCoupon().getCode());
+             dto.setUsed(uc.isUsed());
+             dto.setCreatedAt(uc.getCreatedAt());
+             dto.setUsedAt(uc.getUsedAt());
+             return dto;
+         }).toList();
 
-        CouponsDtos.UserCouponListResponse response = new CouponsDtos.UserCouponListResponse();
-        response.setUserId(userId);
-        response.setCoupons(coupons);
+         CouponsDtos.UserCouponListResponse response = new CouponsDtos.UserCouponListResponse();
+         response.setUserId(userId);
+         response.setCoupons(coupons);
 
-        return response;
-    }
+         return response;
+     }
 
 
      // 쿠폰 사용 처리
