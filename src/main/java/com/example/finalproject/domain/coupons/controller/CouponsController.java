@@ -25,7 +25,7 @@ public class CouponsController {
     }
 
     // 사용자 쿠폰 등록
-    @PostMapping("/register")
+    @PostMapping("/user-coupons")
     public ResponseEntity<CouponsDtos.UserCouponResponse> registerUserCoupon(
             @RequestBody CouponsDtos.RegisterUserCouponRequest request
     ) {
