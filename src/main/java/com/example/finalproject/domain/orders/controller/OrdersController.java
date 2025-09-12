@@ -23,6 +23,7 @@ public class OrdersController {
     }
 
     // 접근 권한 및 로그인 확인 예외처리 제외하고 구현 <- 추후 로그인 기능과 merge 했을 때 합칠 예정
+    // 주문 생성
     @PostMapping
     public ResponseEntity<?> createOrder(
             @RequestHeader Long userId,
@@ -38,6 +39,7 @@ public class OrdersController {
         }
     }
 
+    // 주문 수정
     @PatchMapping("/{orderId}")
     public ResponseEntity<?> updateStatus(
             @PathVariable Long orderId,
@@ -53,6 +55,7 @@ public class OrdersController {
         }
     }
 
+    // 주문 단건 조회
     @GetMapping("/{orderId}")
     public ResponseEntity<?> getOrder(@PathVariable Long orderId) {
         try{
