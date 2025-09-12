@@ -94,9 +94,9 @@ public class MenusService {
         if (request.getStatus() != null) menu.setStatus(Menus.MenuStatus.valueOf(request.getStatus()));
         menusRepository.save(menu);
 
-        // 카테고리 재생성
-        categoriesRepository.deleteAll(categoriesRepository.findByMenuId(menuId));
+        // 카테고리
         if (request.getCategories() != null) {
+            categoriesRepository.deleteAll(categoriesRepository.findByMenuId(menuId));
             for (String cat : request.getCategories()) {
                 MenuCategories category = new MenuCategories();
                 category.setMenu(menu);
@@ -105,14 +105,14 @@ public class MenusService {
             }
         }
 
-        // 옵션 + 선택지 재생성
-        List<MenuOptions> existingOptions = optionsRepository.findByMenuId(menuId);
-        for (MenuOptions opt : existingOptions) {
-            choicesRepository.deleteAll(choicesRepository.findByGroupId(opt.getId()));
-        }
-        optionsRepository.deleteAll(existingOptions);
-
+        // 옵션
         if (request.getOptions() != null) {
+            List<MenuOptions> existingOptions = optionsRepository.findByMenuId(menuId);
+            for (MenuOptions opt : existingOptions) {
+                choicesRepository.deleteAll(choicesRepository.findByGroupId(opt.getId()));
+            }
+            optionsRepository.deleteAll(existingOptions);
+
             for (MenuOptionsRequest optReq : request.getOptions()) {
                 MenuOptions option = new MenuOptions();
                 option.setMenu(menu);
