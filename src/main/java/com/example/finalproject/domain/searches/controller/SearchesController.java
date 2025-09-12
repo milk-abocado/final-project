@@ -1,6 +1,6 @@
 package com.example.finalproject.domain.searches.controller;
 
-import com.example.finalproject.security.CustomUserDetails;
+import com.example.finalproject.domain.security.CustomUserDetails;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/searches")
-public class SearchesController<CustomUserDetails> {
+public class SearchesController {
     private final SearchesService searchesService;
 
     public SearchesController(SearchesService searchesService) {
@@ -27,7 +27,7 @@ public class SearchesController<CustomUserDetails> {
             @RequestBody SearchesRequestDto request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) throws BadRequestException {
-        request.setUserId(userDetails.getUserId);
+        request.setUserId(userDetails.getUserId());
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(201).body(response);
     }
@@ -38,7 +38,7 @@ public class SearchesController<CustomUserDetails> {
             @RequestBody SearchesRequestDto request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) throws BadRequestException {
-        request.setUserId(userDetails.getUserId); //dto에 userId 주입
+        request.setUserId(userDetails.getUserId()); //dto에 userId 주입
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(200).body(response);
     }
