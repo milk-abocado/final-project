@@ -37,7 +37,7 @@ public class CouponsController {
     }
 
     // 사용자 보유 쿠폰 조회
-    @GetMapping("/user/{userId}")
+    @GetMapping("/user-coupons/{userId}")
     public ResponseEntity<CouponsDtos.UserCouponListResponse> getUserCoupons(
             @PathVariable Long userId
     ) {
@@ -46,9 +46,9 @@ public class CouponsController {
     }
 
     // 쿠폰 사용 처리
-    @PostMapping("/use/{userCouponId}")
-    public ResponseEntity<Void> useCoupon(@PathVariable Long userCouponId) {
-        couponsService.useCoupon(userCouponId);
+    @PostMapping("/user-coupons/use")
+    public ResponseEntity<Void> useCoupon(@RequestBody CouponsDtos.UseCouponRequest request) {
+        couponsService.useCoupon(request.getUserId(), request.getCouponCode(), request.getOrderId());
         return ResponseEntity.noContent().build();
     }
 }
