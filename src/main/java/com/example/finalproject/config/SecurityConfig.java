@@ -23,6 +23,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/auth/**",        // 회원가입/로그인/토큰 재발급 열기
+                                "/oauth/**",
                                 "/error",
                                 "/actuator/health"
                         ).permitAll()

@@ -1,0 +1,21 @@
+oauth:
+  kakao:
+    client-id: ca5dbad411b08f51e27c1176a7a31de9
+    client-secret: AFDmpHNxjuJK8TRDO9dZnCLsofWQOddG
+    redirect-uri: http://localhost:8080/oauth/kakao/callback
+    scope: "account_email profile_nickname"
+  naver:
+    client-id: yUczCPAmd3DtGuus5NMR
+    client-secret: qEzSdCwIGC
+    redirect-uri: http://localhost:8080/oauth/naver/callback
+jwt:
+  issuer: finalproject
+  access:
+    secret: "dev-access-secret-please-change"   # 32자 이상 추천, 특수문자 있으면 따옴표로 감싸기
+    ttl-seconds: 3600                            # 액세스 토큰 유효시간(초)
+  refresh:
+    secret: "dev-refresh-secret-please-change"  # 리프레시 토큰 키
+    ttl-seconds: 604800                          # 7일(초)
+frontend:
+  success-redirect: "http://localhost:3000/oauth/success"
+  fail-redirect: "http://localhost:3000/oauth/fail"
