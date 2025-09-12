@@ -24,13 +24,13 @@ public class MenusController {
     public MenusResponse updateMenu(@PathVariable Long storeId,
                                     @PathVariable Long menuId,
                                     @RequestBody MenusRequest request) {
-        return menusService.updateMenu(menuId, request);
+        return menusService.updateMenu(menuId, storeId, request);
     }
 
     @DeleteMapping("/{menuId}")
     public String deleteMenu(@PathVariable Long storeId,
                              @PathVariable Long menuId) {
-        menusService.deleteMenu(menuId);
+        menusService.deleteMenu(menuId, storeId);
         return "메뉴가 삭제되었습니다.";
     }
 }

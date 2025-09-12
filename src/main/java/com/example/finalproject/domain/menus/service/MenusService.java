@@ -78,13 +78,16 @@ public class MenusService {
             }
         }
 
-        return getMenu(menu.getId());
+        return getMenu(menu.getId(), storeId);
     }
 
     @Transactional
-    public MenusResponse updateMenu(Long menuId, MenusRequest request) {
-        Menus menu = menusRepository.findById(menuId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
+    public MenusResponse updateMenu(Long menuId, Long storeId, MenusRequest request) {
+        Stores store = storesRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
+
+        Menus menu = menusRepository.findByIdAndStoreId(menuId, storeId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 가게의 메뉴가 존재하지 않습니다."));
 
         menu.setName(request.getName() != null ? request.getName() : menu.getName());
         menu.setPrice(request.getPrice() != null ? request.getPrice() : menu.getPrice());
@@ -131,13 +134,13 @@ public class MenusService {
             }
         }
 
-        return getMenu(menu.getId());
+        return getMenu(menu.getId(), storeId);
     }
 
     @Transactional
-    public void deleteMenu(Long menuId) {
-        Menus menu = menusRepository.findById(menuId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
+    public void deleteMenu(Long menuId, Long storeId) {
+        Menus menu = menusRepository.findByIdAndStoreId(menuId, storeId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 가게의 메뉴가 존재하지 않습니다."));
 
         List<MenuOptions> options = optionsRepository.findByMenuId(menuId);
         for (MenuOptions opt : options) {
@@ -152,9 +155,9 @@ public class MenusService {
 
 
     @Transactional(readOnly = true)
-    public MenusResponse getMenu(Long menuId) {
-        Menus menu = menusRepository.findById(menuId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
+    public MenusResponse getMenu(Long menuId, Long storeId) {
+        Menus menu = menusRepository.findByIdAndStoreId(menuId, storeId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 가게의 메뉴가 존재하지 않습니다."));
 
         List<MenuCategories> categories = categoriesRepository.findByMenuId(menuId);
         List<MenusCategoriesResponse> categoryResponses = categories.stream()

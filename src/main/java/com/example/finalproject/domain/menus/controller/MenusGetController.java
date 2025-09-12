@@ -21,7 +21,7 @@ public class MenusGetController {
     @GetMapping("/{menuId}")
     public MenusResponse getMenu(@PathVariable Long storeId,
                                  @PathVariable Long menuId) {
-        return menusService.getMenu(menuId);
+        return menusService.getMenu(menuId, storeId);
     }
 
     @GetMapping
