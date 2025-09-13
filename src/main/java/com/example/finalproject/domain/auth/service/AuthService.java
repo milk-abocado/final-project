@@ -1,152 +1,193 @@
 package com.example.finalproject.domain.auth.service;
 
-import com.example.finalproject.domain.common.mail.SmtpMailSender;
-import com.example.finalproject.domain.auth.entity.SocialAccount;
-import com.example.finalproject.domain.auth.repository.SocialAccountRepository;
+import com.example.finalproject.config.TokenProperties;
+import com.example.finalproject.config.SessionIndexService;
+import com.example.finalproject.config.TokenProvider;
 import com.example.finalproject.domain.auth.dto.EmailRequest;
 import com.example.finalproject.domain.auth.dto.EmailVerifyRequest;
 import com.example.finalproject.domain.auth.dto.LoginRequest;
 import com.example.finalproject.domain.auth.dto.SignupRequest;
 import com.example.finalproject.domain.auth.dto.SocialProviderLoginRequest;
 import com.example.finalproject.domain.auth.dto.TokenRefreshRequest;
-
-import com.example.finalproject.domain.users.UserRole;
-import com.example.finalproject.domain.users.entity.Users;
-import com.example.finalproject.domain.common.jwt.JwtProvider;
+import com.example.finalproject.domain.auth.entity.SocialAccount;
+import com.example.finalproject.domain.auth.repository.SocialAccountRepository;
+import com.example.finalproject.domain.common.mail.SmtpMailSender;
 import com.example.finalproject.domain.common.redis.CodeStore;
 import com.example.finalproject.domain.common.redis.TokenStore;
-
+import com.example.finalproject.domain.users.UserRole;
+import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
+/**
+ * 인증/인가 핵심 서비스
+ * - 회원가입/이메일인증
+ * - 로그인/토큰재발급/로그아웃
+ * - 소셜로그인(카카오/네이버 액세스토큰 기반)
+ * - 중복로그인 방지(sid + Redis)
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
+    // ── Repository & Infra ───────────────────────────────────────────────
     private final UsersRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
 
-    private final JwtProvider jwtProvider;
-    private final CodeStore codeStore;
-    private final TokenStore tokenStore;
-    private final SmtpMailSender mailSender; // SMTP 메일 발송기
-    private final OAuthService oAuthService; // 카카오/네이버 액세스 토큰 검증
+    private final PasswordEncoder passwordEncoder;
+    private final SmtpMailSender mailSender;
 
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    // ── Token / Redis Stores ─────────────────────────────────────────────
+    private final TokenProvider tokenProvider;   // JWT 발급/검증 유틸
+    private final TokenStore tokenStore;         // refresh 저장/검증/폐기
+    private final CodeStore codeStore;           // 이메일 인증코드 저장
+    private final SessionIndexService sidStore;  // userId → sid (중복 로그인 방지)
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 이메일 인증 (가입)
-    // ─────────────────────────────────────────────────────────────────────
+    private final TokenProperties tokenProperties; // TTL 가져올 때 사용
+
+    // ── OAuth (카카오/네이버) 액세스토큰 검증 서비스 ───────────────────────
+    private final OAuthService oAuthService;
+
+    // ====================================================================
+    // 이메일 인증
+    // ====================================================================
     public void sendSignupEmail(EmailRequest req) {
         String code = sixDigitCode();
         codeStore.saveSignupCode(req.getEmail(), code);
-        mailSender.send(req.getEmail(), "Your verification code", "CODE: " + code);
+        mailSender.send(
+                req.getEmail(),
+                "Your verification code",
+                "CODE: " + code
+        );
     }
 
     public Map<String, Object> verifySignupEmail(EmailVerifyRequest req) {
         boolean ok = codeStore.verifySignupCode(req.getEmail(), req.getCode());
         if (!ok) throw new IllegalArgumentException("invalid code");
-        return Map.of("verifiedToken", UUID.randomUUID().toString(), "expiresIn", 600);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────
-    // 회원 가입 / 로그인 / 토큰 재발급 / 로그아웃
-    // ─────────────────────────────────────────────────────────────────────
-    @Transactional
-    public Users signup(SignupRequest req) {
-        if (userRepository.existsByEmail(req.getEmail()))
-            throw new IllegalArgumentException("email used");
-
-        Users u = Users.builder()
-                .email(req.getEmail())
-                .password(encoder.encode(req.getPassword()))
-                .nickname(req.getNickname())
-                .role(UserRole.USER)
-                .build();
-
-        return userRepository.save(u);
-    }
-
-    public Map<String, Object> login(LoginRequest req) {
-        Users u = userRepository.findByEmailAndDeletedFalse(req.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("invalid login"));
-        if (!encoder.matches(req.getPassword(), u.getPassword()))
-            throw new IllegalArgumentException("invalid login");
-
-        String access = jwtProvider.createAccess(u.getId(), u.getRole().name());
-        String refresh = jwtProvider.createRefresh(u.getId());
-        tokenStore.saveRefresh(u.getId(), refresh, 60L * 60 * 24 * 7);
-
         return Map.of(
-                "access_token", access,
-                "refresh_token", refresh,
-                "token_type", "Bearer",
-                "expires_in", 3600,
-                "user", Map.of("user_id", u.getId(), "role", u.getRole().name()),
-                "social_login", false
+                "verifiedToken", UUID.randomUUID().toString(),
+                "expiresIn", 600
         );
     }
 
-    // 컨트롤러에서 body를 그대로 받을 때 편의를 위한 오버로드
+    // ====================================================================
+    // 회원가입
+    // ====================================================================
+    @Transactional
+    public Users signup(SignupRequest req) {
+        if (userRepository.existsByEmail(req.getEmail())) {
+            throw new IllegalArgumentException("email used");
+        }
+        Users u = Users.builder()
+                .email(req.getEmail())
+                .password(passwordEncoder.encode(req.getPassword()))
+                .nickname(req.getNickname())
+                .role(UserRole.USER)
+                .build();
+        return userRepository.save(u);
+    }
+
+    // ====================================================================
+    // 로그인
+    // ====================================================================
+    public Map<String, Object> login(LoginRequest req) {
+        Users u = userRepository.findByEmailAndDeletedFalse(req.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("invalid login"));
+        if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
+            throw new IllegalArgumentException("invalid login");
+        }
+
+        // 새 sid 발급 & 보관(중복 로그인 방지)
+        String sid = UUID.randomUUID().toString();
+        sidStore.set(u.getId(), sid, tokenProperties.getRefresh().getTtlSeconds());
+
+        String rolesStr = u.getRole().name();
+        String access   = tokenProvider.createAccess(u.getId(), u.getEmail(), rolesStr, sid);
+        String refresh  = tokenProvider.createRefresh(u.getId(), sid);
+
+        tokenStore.saveRefresh(u.getId(), refresh, tokenProperties.getRefresh().getTtlSeconds());
+
+        return tokenResponse(access, refresh, u, /*social*/ false, null);
+    }
+
+    // ====================================================================
+    // 토큰 재발급 (Authorization 헤더/쿠키/바디 통해 전달된 refresh)
+    // ====================================================================
     public Map<String, Object> refresh(TokenRefreshRequest req) {
         return refresh(req.getRefreshToken());
     }
 
-    // 실제 재발급 로직: refresh 토큰만으로 처리 (userId 헤더 없이)
     public Map<String, Object> refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new IllegalArgumentException("INVALID_REFRESH");
         }
 
-        // 1) 리프레시 토큰 파싱(서명/만료/typ=refresh 확인) → userId 추출
-        var claims = jwtProvider.parseRefresh(refreshToken); // JwtProvider에 구현 필요
+        // 1) refresh 파싱 → uid, sid
+        Claims claims = tokenProvider.parseRefresh(refreshToken);   // TokenProvider에 구현
         Long userId = claims.get("uid", Long.class);
         if (userId == null) {
-            // subject에 userId를 넣어뒀던 경우 대비
-            userId = Long.parseLong(claims.getSubject());
+            userId = Long.parseLong(claims.getSubject()); // 혹시 subject에 보관했을 때 대비
         }
+        String sid = Optional.ofNullable(claims.get("sid"))
+                .map(Object::toString).orElse(null);
 
-        // 2) 저장소(예: Redis)에 있는 유효 리프레시인지 확인
+        // 2) 저장소에 실제로 보관된 refresh 인지 확인
         if (!tokenStore.isRefreshValid(userId, refreshToken)) {
             throw new IllegalStateException("INVALID_REFRESH");
         }
 
-        // 3) 실제 유저 조회해서 Role 사용 (하드코딩 금지)
+        // 3) (옵션) 세션 일치성 확인 — 현재 보관된 sid 와 토큰의 sid 가 다르면 중복 로그인으로 간주
+        if (sid != null && !sidStore.isRefreshValid(userId, refreshToken)) {
+            throw new IllegalStateException("SESSION_CONFLICT");
+        }
+
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
 
-        // 4) 토큰 회전(rotate)
-        String newAccess  = jwtProvider.createAccess(user.getId(), user.getRole().name());
-        String newRefresh = jwtProvider.createRefresh(user.getId());
-        tokenStore.saveRefresh(user.getId(), newRefresh, 60L * 60 * 24 * 7);
+        // 4) 토큰 회전
+        String rolesStr   = user.getRole().name();
+        String newAccess  = tokenProvider.createAccess(user.getId(), user.getEmail(), rolesStr, sid);
+        String newRefresh = tokenProvider.createRefresh(user.getId(), sid);
+
+        tokenStore.saveRefresh(user.getId(), newRefresh, tokenProperties.getRefresh().getTtlSeconds());
+        sidStore.bump(user.getId(), tokenProperties.getRefresh().getTtlSeconds()); // TTL 연장(선택)
 
         return Map.of(
-                "access_token", newAccess,
+                "access_token",  newAccess,
                 "refresh_token", newRefresh,
-                "token_type", "Bearer",
-                "expires_in", 3600
+                "token_type",    "Bearer",
+                "expires_in",    tokenProperties.getAccess().getTtlSeconds()
         );
     }
 
-    public void logout(String access, Long userId) {
-        String jti = jwtProvider.getJti(access);
-        tokenStore.blacklistAccess(jti, 3600); // 액세스 만료까지 블랙리스트
-        tokenStore.revokeRefresh(userId);      // 사용자 리프레시 제거
+    // ====================================================================
+    // 로그아웃
+    // ====================================================================
+    public void logout(String accessToken, Long userId) {
+        // 현재 세션 무효화: 사용자 refresh 제거 + sid 제거
+        tokenStore.revokeRefresh(userId);
+        sidStore.evict(userId);
+        // (선택) access jti 블랙리스트 처리하려면 TokenProvider에서 jti 추출 로직을 추가해 사용하세요.
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 소셜 로그인 (카카오/네이버) — 클라이언트의 AccessToken 검증 방식
-    // ─────────────────────────────────────────────────────────────────────
+    // ====================================================================
+    // 소셜 로그인 (카카오/네이버) — "액세스토큰" 검증 기반
+    // ====================================================================
     @Transactional
     public Map<String, Object> socialLoginByAccessToken(SocialProviderLoginRequest req) {
+        // 1) 소셜 액세스토큰 검증 및 유저 정보 조회
         var info = oAuthService.fetchUser(req.getProvider(), req.getAccessToken());
+        // info: provider, providerId, email(있을수도 없음), nickname(있을수도 없음)
 
-        // 1) 소셜 계정이 이미 존재?
+        // 2) 계정 매핑
         Optional<SocialAccount> existing = socialAccountRepository
                 .findByProviderAndProviderId(info.getProvider(), info.getProviderId());
 
@@ -154,7 +195,7 @@ public class AuthService {
         if (existing.isPresent()) {
             u = existing.get().getUser();
         } else {
-            // 2) 최초 로그인: 사용자 연결/생성 후 소셜 계정 저장
+            // 최초 로그인: 이메일이 없으면 가짜 이메일 부여
             String email = (info.getEmail() != null && !info.getEmail().isBlank())
                     ? info.getEmail()
                     : info.getProvider() + "_" + info.getProviderId() + "@social.local";
@@ -162,7 +203,7 @@ public class AuthService {
             u = userRepository.findByEmailAndDeletedFalse(email).orElseGet(() ->
                     userRepository.save(Users.builder()
                             .email(email)
-                            .password(encoder.encode(UUID.randomUUID().toString()))
+                            .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                             .nickname(info.getNickname() != null ? info.getNickname() : "소셜유저")
                             .role(UserRole.USER)
                             .build())
@@ -175,19 +216,38 @@ public class AuthService {
                     .build());
         }
 
-        String access = jwtProvider.createAccess(u.getId(), u.getRole().name());
-        String refresh = jwtProvider.createRefresh(u.getId());
-        tokenStore.saveRefresh(u.getId(), refresh, 60L * 60 * 24 * 7);
+        // 3) sid 저장 후 토큰 발급
+        String sid = UUID.randomUUID().toString();
+        sidStore.set(u.getId(), sid, tokenProperties.getRefresh().getTtlSeconds());
 
-        return Map.of(
-                "access_token", access,
-                "refresh_token", refresh,
-                "token_type", "Bearer",
-                "expires_in", 3600,
-                "user", Map.of("user_id", u.getId(), "role", u.getRole().name()),
-                "social_login", true,
-                "provider", info.getProvider()
-        );
+        String rolesStr = u.getRole().name();
+        String access   = tokenProvider.createAccess(u.getId(), u.getEmail(), rolesStr, sid);
+        String refresh  = tokenProvider.createRefresh(u.getId(), sid);
+
+        tokenStore.saveRefresh(u.getId(), refresh, tokenProperties.getRefresh().getTtlSeconds());
+
+        return tokenResponse(access, refresh, u, /*social*/ true, info.getProvider());
+    }
+
+    // ====================================================================
+    // 내부 유틸
+    // ====================================================================
+    private Map<String, Object> tokenResponse(String access,
+                                              String refresh,
+                                              Users u,
+                                              boolean social,
+                                              String provider) {
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("access_token", access);
+        res.put("refresh_token", refresh);
+        res.put("token_type", "Bearer");
+        res.put("expires_in", tokenProperties.getAccess().getTtlSeconds());
+        res.put("user", Map.of("user_id", u.getId(), "role", u.getRole().name()));
+        res.put("social_login", social);
+        if (social && provider != null) {
+            res.put("provider", provider);
+        }
+        return res;
     }
 
     private String sixDigitCode() {

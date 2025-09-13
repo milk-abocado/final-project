@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.auth.controller;
 
+import com.example.finalproject.config.TokenProvider;
 import com.example.finalproject.domain.auth.dto.*;
 import com.example.finalproject.domain.auth.service.AuthService;
 import com.example.finalproject.domain.users.entity.Users;
@@ -76,33 +77,13 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String bearer,
-                                       @RequestHeader("X-USER-ID") Long userId) {
-        String access = (bearer != null && bearer.startsWith("Bearer ")) ? bearer.substring(7) : null;
-        authService.logout(access, userId);
+    public ResponseEntity<Void> logout(
+            @RequestHeader(value = "Authorization", required = false) String bearer,
+            @RequestHeader("X-USER-ID") Long userId) {
+
+        String access = TokenProvider.stripBearer(bearer); // "Bearer " 제거 (null 허용)
+        authService.logout(access, userId);                // ◀ 두 개 인자 전달
+
         return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/social-login/token")
-    public ResponseEntity<Map<String, Object>> socialLoginByAccessToken(@Valid @RequestBody SocialProviderLoginRequest req) {
-        return ResponseEntity.ok(authService.socialLoginByAccessToken(req));
-    }
-
-    @PostMapping("/social-login/kakao")
-    public ResponseEntity<Map<String, Object>> socialLoginKakao(@Valid @RequestBody AccessTokenRequest req) {
-        var sreq = SocialProviderLoginRequest.builder()
-                .provider("kakao")
-                .accessToken(req.getAccessToken())
-                .build();
-        return ResponseEntity.ok(authService.socialLoginByAccessToken(sreq));
-    }
-
-    @PostMapping("/social-login/naver")
-    public ResponseEntity<Map<String, Object>> socialLoginNaver(@Valid @RequestBody AccessTokenRequest req) {
-        var sreq = SocialProviderLoginRequest.builder()
-                .provider("naver")
-                .accessToken(req.getAccessToken())
-                .build();
-        return ResponseEntity.ok(authService.socialLoginByAccessToken(sreq));
     }
 }

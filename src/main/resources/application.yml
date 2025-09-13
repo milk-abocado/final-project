@@ -11,11 +11,15 @@ oauth:
 jwt:
   issuer: finalproject
   access:
-    secret: "dev-access-secret-please-change"   # 32자 이상 추천, 특수문자 있으면 따옴표로 감싸기
-    ttl-seconds: 3600                            # 액세스 토큰 유효시간(초)
+    secret: 'K0k6o0r9m0lBf8l1I2s3L4c5r6U7v8W9xY0z1A2B3C4D5E6F7G8H=='
+    ttl-seconds: 3600
   refresh:
-    secret: "dev-refresh-secret-please-change"  # 리프레시 토큰 키
-    ttl-seconds: 604800                          # 7일(초)
+    secret: 'b1Q2r3S4t5U6v7W8x9Y0z1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O=='
+    ttl-seconds: 604800
 frontend:
   success-redirect: "http://localhost:3000/oauth/success"
   fail-redirect: "http://localhost:3000/oauth/fail"
+logging:
+  level:
+    com.example.finalproject.config: DEBUG
+    org.springframework.security: DEBUG
