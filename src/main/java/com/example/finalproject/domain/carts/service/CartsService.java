@@ -39,7 +39,7 @@ public class CartsService {
         // 메뉴에 맞는 유효한 옵션 확인
         Map<Long, MenuOptionChoices> validChoices = new HashMap<>();
         for (MenuOptions group : optionGroups) {
-            List<MenuOptionChoices> choices = menuOptionChoicesRepository.findByGroup_Id(group.getId());
+            List<MenuOptionChoices> choices = menuOptionChoicesRepository.findByGroupId(group.getId());
             for (MenuOptionChoices choice : choices) {
                 validChoices.put(choice.getId(), choice);
             }
@@ -150,7 +150,7 @@ public class CartsService {
         }
 
         // 해당 메뉴의 옵션 체크
-        List<MenuOptions> optionGroups = menuOptionsRepository.findByMenu_Id(menu.getId());
+        List<MenuOptions> optionGroups = menuOptionsRepository.findByMenuId(menu.getId());
         List<CartsOptionResponse> options = validateAndBuildOptions(
                 cartsItemRequest.getOptions(),
                 optionGroups,
@@ -225,7 +225,7 @@ public class CartsService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
 
         // 해당 메뉴의 옵션 체크
-        List<MenuOptions> optionGroups = menuOptionsRepository.findByMenu_Id(menu.getId());
+        List<MenuOptions> optionGroups = menuOptionsRepository.findByMenuId(menu.getId());
         List<CartsOptionResponse> options = validateAndBuildOptions(
                 cartsItemRequest.getOptions(),
                 optionGroups,

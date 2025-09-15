@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+//@Builder
 public class Users {
 
     @Id
@@ -64,5 +64,13 @@ public class Users {
     @PreUpdate
     void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public Object getUsername() {
+        return null;
+    }
+
+    public Object getUserId() {
+        return null;
     }
 }

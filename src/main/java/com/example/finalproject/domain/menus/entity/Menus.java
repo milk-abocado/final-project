@@ -20,11 +20,15 @@ public class Menus {
     @JoinColumn(name = "store_id")
     private Stores store;
 
+    @Column(nullable = false, length = 100)
     private String name;
+
+    @Column(nullable = false)
     private Integer price;
 
     @Enumerated(EnumType.STRING)
-    private MenuStatus status;
+    @Column(nullable = false)
+    private MenuStatus status; // ACTIVE, DELETED, SOLD_OUT
 
     public enum MenuStatus {
         ACTIVE, DELETED, SOLD_OUT
