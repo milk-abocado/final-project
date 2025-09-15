@@ -141,13 +141,15 @@ public class MenusService {
                 .orElseThrow(() -> new IllegalArgumentException("해당 가게의 메뉴가 존재하지 않습니다."));
 
         List<MenuOptions> options = optionsRepository.findByMenuId(menuId);
+
+        // 세부 옵션 삭제
         for (MenuOptions opt : options) {
             choicesRepository.deleteAll(choicesRepository.findByGroupId(opt.getId()));
         }
         optionsRepository.deleteAll(options);
-
+        // 옵션 그룹 삭제
         categoriesRepository.deleteAll(categoriesRepository.findByMenuId(menuId));
-
+        // 메뉴삭제
         menusRepository.delete(menu);
     }
 
