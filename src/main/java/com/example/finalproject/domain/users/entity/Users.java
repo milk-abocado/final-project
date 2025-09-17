@@ -19,13 +19,13 @@ public class Users {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false, length = 100)
@@ -34,7 +34,7 @@ public class Users {
     @Column(name = "phone_number", length = 30)
     private String phoneNumber;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String address;
 
     @Enumerated(EnumType.STRING)
