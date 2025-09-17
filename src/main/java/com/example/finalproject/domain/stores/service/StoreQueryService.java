@@ -125,15 +125,18 @@ public class StoreQueryService {
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
 
         // 폐업 여부 체크: retiredAt 있거나 active=false 인 경우
-        if ((s.getRetiredAt() != null) || (s.getActive() != null && !s.getActive())) {
-            throw new ApiException(ErrorCode.GONE, "폐업한 가게입니다.");
+        boolean isRetired = (s.getRetiredAt() != null) || (s.getActive() != null && !s.getActive());
+        if (isRetired) {
+            throw new ApiException(ErrorCode.GONE, "폐업된 가게는 조회할 수 없습니다.");
         }
 
+        // 메뉴 로딩
         List<MenuSummaryResponse> menus = menuReader
                 .map(r -> r.findMenusOfStore(s.getId()))
                 .orElseGet(List::of);
 
-        return toDetail(s, menus);
+        // 상태 메시지와 함께 toDetail 호출
+        return toDetail(s, menus, "영업 중인 가게");
     }
 
     /**
@@ -153,27 +156,39 @@ public class StoreQueryService {
         if (!s.getOwner().getEmail().equals(email))  // 이메일로 비교
             throw new ApiException(ErrorCode.FORBIDDEN, "본인 소유 가게만 조회할 수 있습니다.");
 
+        // 가게의 폐업 여부 확인
+        boolean isRetired = (s.getRetiredAt() != null || !s.getActive());
+        String statusMessage = isRetired ? "폐업된 가게" : "영업 중인 가게";
+
         // 메뉴 로딩
         List<MenuSummaryResponse> menus = menuReader
                 .map(r -> r.findMenusOfStore(s.getId()))
                 .orElseGet(List::of);  // 구현체 없으면 빈 리스트 반환
 
-        return toDetail(s, menus);
+        // 상태 메시지를 포함한 가게 상세 응답 반환
+        return toDetail(s, menus, statusMessage);  // statusMessage를 전달
     }
 
     /**
      * 엔티티 + 메뉴목록 → 상세 DTO 변환
      */
-    private StoreDetailResponse toDetail(Stores s, List<MenuSummaryResponse> menus) {
+    private StoreDetailResponse toDetail(Stores s, List<MenuSummaryResponse> menus, String statusMessage) {
         return new StoreDetailResponse(
-                s.getId(), s.getOwner().getId(),
-                s.getName(), s.getAddress(),
-                s.getMinOrderPrice(), s.getDeliveryFee(),
-                s.getOpensAt(), s.getClosesAt(),
+                s.getId(),
+                s.getOwner().getId(),
+                s.getName(),
+                s.getAddress(),
+                s.getMinOrderPrice(),
+                s.getDeliveryFee(),
+                s.getOpensAt(),
+                s.getClosesAt(),
                 isOpenNow(s.getOpensAt(), s.getClosesAt()),
-                s.getLatitude(), s.getLongitude(),
+                s.getLatitude(),
+                s.getLongitude(),
                 menus,
-                s.getCreatedAt(), s.getUpdatedAt()
+                s.getCreatedAt(),
+                s.getUpdatedAt(),
+                statusMessage // statusMessage 추가
         );
     }
 

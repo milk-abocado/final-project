@@ -18,18 +18,20 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StoreDetailResponse {
-    private Long id;                       // 가게 ID
-    private Long ownerId;                  // 가게 주인 ID
-    private String name;                   // 가게 이름
-    private String address;                // 주소
-    private Integer minOrderPrice;         // 최소 주문 금액
-    private Integer deliveryFee;           // 배달비
-    private LocalTime opensAt;             // 영업 시작 시간
-    private LocalTime closesAt;            // 영업 종료 시간
-    private boolean openNow;               // 현재 영업 여부
-    private Double latitude;               // 위도
-    private Double longitude;              // 경도
+    private Long id;                         // 가게 ID
+    private Long ownerId;                    // 가게 주인 ID
+    private String name;                     // 가게 이름
+    private String address;                  // 주소
+    private Integer minOrderPrice;           // 최소 주문 금액
+    private Integer deliveryFee;             // 배달비
+    private LocalTime opensAt;               // 영업 시작 시간
+    private LocalTime closesAt;              // 영업 종료 시간
+    private boolean openNow;                 // 현재 영업 여부
+    private Double latitude;                 // 위도
+    private Double longitude;                // 경도
     private List<MenuSummaryResponse> menus; // 메뉴 요약 리스트
-    private LocalDateTime createdAt;       // 생성일
-    private LocalDateTime updatedAt;       // 수정일
+    private LocalDateTime createdAt;         // 생성일
+    private LocalDateTime updatedAt;         // 수정일
+
+    private String statusMessage;            // 가게 상태 (영업 중 또는 폐업된 가게)
 }
