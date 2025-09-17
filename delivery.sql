@@ -298,14 +298,9 @@ CREATE TABLE social_accounts (
 
 CREATE INDEX idx_social_user ON social_accounts (user_id);
 
-ALTER TABLE users ADD COLUMN address VARCHAR(100);
-
 ALTER TABLE reviews
     ADD COLUMN deleted_at DATETIME NULL,
     ADD COLUMN deleted_by VARCHAR(16) NULL,
     ADD COLUMN updated_at DATETIME NULL;
-
-ALTER TABLE user_coupons
-    ADD COLUMN used_at TIMESTAMP NULL;
 
 CREATE INDEX idx_reviews_is_deleted ON reviews (is_deleted);

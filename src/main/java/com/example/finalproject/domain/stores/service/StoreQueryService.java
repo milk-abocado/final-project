@@ -1,6 +1,5 @@
 package com.example.finalproject.domain.stores.service;
 
-import com.example.finalproject.domain.stores.auth.SecurityUtil;
 import com.example.finalproject.domain.stores.category.StoreCategory;
 import com.example.finalproject.domain.stores.dto.response.MenuSummaryResponse;
 import com.example.finalproject.domain.stores.dto.response.StoreDetailResponse;
@@ -12,9 +11,12 @@ import com.example.finalproject.domain.stores.geo.GeocodingPort;
 import com.example.finalproject.domain.stores.geo.LatLng;
 import com.example.finalproject.domain.stores.menu.MenuReader;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -33,7 +35,6 @@ import java.util.Optional;
 public class StoreQueryService {
 
     private final StoresRepository storesRepository;
-    private final SecurityUtil security;
     private final Optional<MenuReader> menuReader; // 구현체 없을 수 있으므로 Optional 주입
     private final GeocodingPort geocoding;         // 주소→좌표 변환 포트
 
@@ -73,7 +74,14 @@ public class StoreQueryService {
         String cat = (category != null) ? category.name() : null;  // enum → 문자열
 
         // 3) 이름 부분검색 + 반경 필터 + 거리 정렬 (원시 배열 반환)
-        Page<Object[]> page = storesRepository.searchWithDistanceRaw(q, qLat, qLng, radiusMeters, cat, pageable);
+        Page<Object[]> page = storesRepository.searchWithDistanceRaw(
+                q,              // 키워드
+                qLat,           // 위도(거리 계산용)
+                qLng,           // 경도(거리 계산용)
+                radiusMeters,   // 반경(m)
+                cat,            // 카테고리 필터
+                pageable        // 페이징 처리
+        );
 
         // 4) Row → DTO 매핑
         return page.map(row -> {
@@ -111,6 +119,7 @@ public class StoreQueryService {
      * - ACTIVE=true 가게만 노출
      * - 메뉴는 MenuReader가 있으면 조회, 없으면 빈 리스트
      */
+    @Transactional
     public StoreDetailResponse getOne(Long storeId) {
         Stores s = storesRepository.findById(storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
@@ -132,15 +141,23 @@ public class StoreQueryService {
      * - 본인 소유 가게만 접근 가능 (그 외 403)
      * - ACTIVE 여부와 무관하게 조회(운영 정책에 맞게 조정 가능)
      */
+    @Transactional
     public StoreDetailResponse getOneForOwner(Long storeId) {
-        Long uid = security.currentUserId();    // 미설정 시 UNAUTHORIZED 예외
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();  // 인증된 사용자의 이메일 (또는 ID)
+
         Stores s = storesRepository.findById(storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
-        if (!s.getOwner().getId().equals(uid))
+
+        // 가게의 소유자가 아닌 경우 403 예외 처리
+        if (!s.getOwner().getEmail().equals(email))  // 이메일로 비교
             throw new ApiException(ErrorCode.FORBIDDEN, "본인 소유 가게만 조회할 수 있습니다.");
+
+        // 메뉴 로딩
         List<MenuSummaryResponse> menus = menuReader
                 .map(r -> r.findMenusOfStore(s.getId()))
-                .orElseGet(List::of);   // 구현체 없으면 빈 리스트
+                .orElseGet(List::of);  // 구현체 없으면 빈 리스트 반환
+
         return toDetail(s, menus);
     }
 
