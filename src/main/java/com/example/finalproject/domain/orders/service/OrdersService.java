@@ -2,6 +2,7 @@ package com.example.finalproject.domain.orders.service;
 
 import com.example.finalproject.domain.carts.dto.response.CartsItemResponse;
 import com.example.finalproject.domain.carts.dto.response.CartsResponse;
+import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.carts.service.CartsService;
 import com.example.finalproject.domain.menus.entity.MenuOptionChoices;
 import com.example.finalproject.domain.menus.entity.Menus;
@@ -50,7 +51,6 @@ public class OrdersService {
         // User 조회
         Users user = usersRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
-
 
         // Cart 조회
         CartsResponse cart = cartsService.getCart(userId);
@@ -151,6 +151,30 @@ public class OrdersService {
         return orders.stream().map(this::buildOrderResponse).collect(Collectors.toList());
     }
 
+    // 주문 삭제
+    public void deleteOrder(Long userId, Long orderId) {
+
+        // 주문 조회
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+
+        // 주문자와 해당 요청을 한 사용자가 일치하는지 확인
+        if (!order.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("본인의 주문만 삭제할 수 있습니다.");
+        }
+
+        List<OrderItems> items = orderItemsRepository.findByOrder(order);
+        // 옵션 삭제
+        for (OrderItems item : items) {
+            orderOptionsRepository.deleteAll(orderOptionsRepository.findByOrderItem(item));
+        }
+        // 아이템 삭제
+        orderItemsRepository.deleteAll(items);
+        // 주문 삭제
+        ordersRepository.delete(order);
+    }
+
+    // response 조합
     private OrdersResponse buildOrderResponse(Orders order) {
         OrdersResponse response = new OrdersResponse();
         response.setOrderId(order.getId());

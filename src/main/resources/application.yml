@@ -1,0 +1,25 @@
+oauth:
+  kakao:
+    client-id: ca5dbad411b08f51e27c1176a7a31de9
+    client-secret: AFDmpHNxjuJK8TRDO9dZnCLsofWQOddG
+    redirect-uri: http://localhost:8080/oauth/kakao/callback
+    scope: "account_email profile_nickname"
+  naver:
+    client-id: yUczCPAmd3DtGuus5NMR
+    client-secret: qEzSdCwIGC
+    redirect-uri: http://localhost:8080/oauth/naver/callback
+jwt:
+  issuer: finalproject
+  access:
+    secret: 'K0k6o0r9m0lBf8l1I2s3L4c5r6U7v8W9xY0z1A2B3C4D5E6F7G8H=='
+    ttl-seconds: 3600
+  refresh:
+    secret: 'b1Q2r3S4t5U6v7W8x9Y0z1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O=='
+    ttl-seconds: 604800
+frontend:
+  success-redirect: "http://localhost:3000/oauth/success"
+  fail-redirect: "http://localhost:3000/oauth/fail"
+logging:
+  level:
+    com.example.finalproject.config: DEBUG
+    org.springframework.security: DEBUG

@@ -22,6 +22,7 @@ public class OrdersOwnerController {
         return ResponseEntity.status(status).body(msg);
     }
 
+    // 주문 조회 (해당 가게에서 주문받은 목록)
     @GetMapping("/orders/stores/{storeId}")
     public ResponseEntity<?> getOrdersByStore(
             @PathVariable Long storeId,
