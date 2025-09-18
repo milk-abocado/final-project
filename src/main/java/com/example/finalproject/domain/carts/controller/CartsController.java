@@ -36,14 +36,6 @@ public class CartsController {
                 ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
         );
 
-        // 유저 권한 출력
-        System.out.println("=== 현재 유저 권한 ===");
-        authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r) // ROLE_ 제거
-                .forEach(r -> System.out.println("권한 = " + r));
-        System.out.println("====================");
-
         // OWNER 권한 접근 방지 (대소문자 무시)
         if (authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
