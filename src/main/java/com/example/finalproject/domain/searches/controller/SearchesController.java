@@ -24,9 +24,10 @@ public class SearchesController {
     @PostMapping
     public ResponseEntity<SearchesResponseDto> create(
             @RequestBody SearchesRequestDto request,
-            @RequestHeader Long userId
+           // @RequestHeader Long userId 임시 헤더일 경우
+            @AuthenticationPrincipal CustomUserDetails userDetails // 로그인 유저일 경우
     ) throws BadRequestException {
-        request.setUserId(userId);
+        request.setUserId(userDetails.getUserId);
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(201).body(response);
     }
@@ -35,9 +36,10 @@ public class SearchesController {
     @PutMapping
     public ResponseEntity<SearchesResponseDto> update(
             @RequestBody SearchesRequestDto request,
-            @RequestHeader Long userId
+           // @RequestHeader Long userId 임시 헤더일 경우
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) throws BadRequestException {
-        request.setUserId(userId); //dto에 userId 주입
+        request.setUserId(userDetails.getUserId); //dto에 userId 주입
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(200).body(response);
     }
@@ -49,8 +51,10 @@ public class SearchesController {
     public ResponseEntity<List<SearchesResponseDto>> getMySearches(
             @RequestParam(required = false) String region,
             @RequestParam(required = false, defaultValue = "updatedAt") String sort,
-            @RequestHeader Long userId
+          // @RequestHeader Long userId
+            @AuthenticationPrincipal CustomUserDetails userDetails //로그인 인증에서 유저 정보 받기
     ) {
+        Long userId = userDetails.getUserId();
 
         List<SearchesResponseDto> result = searchesService.getMySearches(userId, region, sort);
 
@@ -66,18 +70,20 @@ public class SearchesController {
     @GetMapping("/{id}")
     public ResponseEntity<SearchesResponseDto> getSearchById(
             @PathVariable Long id,
-            @RequestHeader Long userId
+          // @RequestHeader Long userId
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        SearchesResponseDto response = searchesService.getSearchById(userId, id);
+        SearchesResponseDto response = searchesService.getSearchById(userDetails.getUserId(), id);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteSearches(
             @PathVariable Long id,
-            @RequestHeader Long userId
+           // @RequestHeader Long userId
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        searchesService.deleteSearches(userId, id);
+        searchesService.deleteSearches(userDetails.getUserId(), id);
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", "검색 기록이 삭제되었습니다.");
