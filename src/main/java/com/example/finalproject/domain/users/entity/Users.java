@@ -34,9 +34,6 @@ public class Users {
     @Column(name = "phone_number", length = 30)
     private String phoneNumber;
 
-    @Column(nullable = false, length = 255)
-    private String address;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserRole role;
@@ -46,6 +43,15 @@ public class Users {
 
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
+
+    @Column(nullable = false, length = 255)
+    private String address;
+
+    @Column(length = 255)
+    private String addressDetail;   // 동/호수 등 상세
+
+    @Column(length = 10)
+    private String zipCode;         // 우편번호
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
