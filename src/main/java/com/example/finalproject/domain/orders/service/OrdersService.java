@@ -19,10 +19,14 @@ import com.example.finalproject.domain.orders.entity.Orders;
 import com.example.finalproject.domain.orders.repository.OrderItemsRepository;
 import com.example.finalproject.domain.orders.repository.OrderOptionsRepository;
 import com.example.finalproject.domain.orders.repository.OrdersRepository;
+import com.example.finalproject.domain.slack.service.SlackService;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
+import com.example.finalproject.domain.orders.util.OrderSlackMessage;
+
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -44,6 +48,7 @@ public class OrdersService {
     private final OrderItemsRepository orderItemsRepository;
     private final OrderOptionsRepository orderOptionsRepository;
     private final CartsService cartsService; // Redis에서 장바구니 조회
+    private final SlackService slackService;
 
     @Transactional
     public OrdersResponse createOrder(Long userId, OrdersRequest request) {
@@ -104,6 +109,11 @@ public class OrdersService {
         // 주문 생성 후 장바구니 비우기
         cartsService.clearCart(userId);
 
+        // 사장님 채널로 새 주문 알림
+        slackService.sendOwnerMessage("[사장님 알림] 새 주문이 들어왔습니다.️");
+        // 사용자 채널로 주문 대기 알림
+        slackService.sendUserMessage(OrderSlackMessage.of("WAITING"));
+
         return buildOrderResponse(order);
     }
 
@@ -122,6 +132,16 @@ public class OrdersService {
         order.setStatus(status);
         order.setUpdatedAt(LocalDateTime.now());
         ordersRepository.save(order);
+
+        // 사용자 채널로 상태별 알림
+        String slackMsg = OrderSlackMessage.of(status.name());
+        slackService.sendUserMessage(slackMsg);
+
+        // 상태 : COMPLETED(배달 완료)시 사장님도 배달 완료 알림 받도록 구현
+        if (status == Orders.Status.COMPLETED) {
+            slackService.sendOwnerMessage("[사장님 알림] 배달이 완료되었습니다.");
+        }
+
 
         OrderStatusResponse resp = new OrderStatusResponse();
         resp.setOrderId(order.getId());
@@ -229,5 +249,7 @@ public class OrdersService {
 
         return response;
     }
+
+
 
 }
