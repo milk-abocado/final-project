@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.menus.service;
 
+import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.menus.dto.request.MenuOptionChoicesRequest;
 import com.example.finalproject.domain.menus.dto.request.MenuOptionsRequest;
 import com.example.finalproject.domain.menus.dto.request.MenusRequest;
@@ -18,10 +19,13 @@ import com.example.finalproject.domain.menus.repository.MenusRepository;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,10 +37,40 @@ public class MenusService {
     private final MenuOptionChoicesRepository choicesRepository;
     private final StoresRepository storesRepository;
 
-    @Transactional
-    public MenusResponse createMenu(Long storeId, MenusRequest request) {
+
+    private Stores verifiedUser(Authentication authentication, Long storeId) {
+
+        // 로그인한 사용자의 userId 가져오기
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
+
+        // OWNER 권한 접근 방지 (대소문자 무시)
+        if (authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r) // ROLE_ 제거
+                .anyMatch(r -> r.equalsIgnoreCase("USER"))) {
+            throw new AccessDeniedException("USER는 접근할 수 없습니다.");
+        }
+
         Stores store = storesRepository.findById(storeId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
+
+        if (!store.getOwner().getId().equals(userId)) {
+            throw new AccessDeniedException("본인 가게만 접근할 수 있습니다.");
+        }
+
+        return store;
+
+    }
+
+
+
+    @Transactional
+    public MenusResponse createMenu(Authentication authentication, Long storeId, MenusRequest request) {
+
+        // 권한 체크
+        Stores store = verifiedUser(authentication, storeId);
 
         Menus menu = new Menus();
         menu.setStore(store);
@@ -82,7 +116,10 @@ public class MenusService {
     }
 
     @Transactional
-    public MenusResponse updateMenu(Long menuId, Long storeId, MenusRequest request) {
+    public MenusResponse updateMenu(Authentication authentication, Long menuId, Long storeId, MenusRequest request) {
+
+        // 권한 체크
+        verifiedUser(authentication, storeId);
 
         Menus menu = menusRepository.findByIdAndStoreId(menuId, storeId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 가게의 메뉴가 존재하지 않습니다."));
@@ -136,7 +173,11 @@ public class MenusService {
     }
 
     @Transactional
-    public void deleteMenu(Long menuId, Long storeId) {
+    public void deleteMenu(Authentication authentication, Long menuId, Long storeId) {
+
+        // 권한 체크
+        verifiedUser(authentication, storeId);
+
         Menus menu = menusRepository.findByIdAndStoreId(menuId, storeId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 가게의 메뉴가 존재하지 않습니다."));
 
