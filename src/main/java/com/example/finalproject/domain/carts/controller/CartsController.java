@@ -1,33 +1,22 @@
 package com.example.finalproject.domain.carts.controller;
 
-import com.example.finalproject.config.JwtTokenProvider;
 import com.example.finalproject.domain.carts.dto.request.CartsItemRequest;
 import com.example.finalproject.domain.carts.dto.response.CartsItemResponse;
 import com.example.finalproject.domain.carts.dto.response.CartsResponse;
 import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.carts.service.CartsService;
 
-import com.example.finalproject.domain.users.UserRole;
-import com.example.finalproject.domain.users.entity.Users;
-import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.Map;
-import java.util.Objects;
 
 @RestController
 @RequestMapping("/carts")
@@ -35,7 +24,6 @@ import java.util.Objects;
 public class CartsController {
 
     private final CartsService cartsService;
-    private final UsersRepository usersRepository;
 
     private ResponseEntity<String> str(HttpStatusCode status, String msg) {
         return ResponseEntity.status(status).body(msg);
