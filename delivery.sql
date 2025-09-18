@@ -226,14 +226,14 @@ CREATE TABLE user_coupons (
                               FOREIGN KEY (coupon_id) REFERENCES coupons (id)
 );
 
--- 6. 검색 (피드백 후 수정)
+-- 6. 검색
 CREATE TABLE searches (
                           id         BIGINT AUTO_INCREMENT PRIMARY KEY,
-                          keyword    VARCHAR(100),
-                          region     VARCHAR(50),
-                          count      INT,
-                          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                          user_id    BIGINT,
+                          keyword    VARCHAR(100) NOT NULL,
+                          region     VARCHAR(50) NOT NULL,
+                          count      INT NOT NULL DEFAULT 0,
+                          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                          user_id    BIGINT NOT NULL,
                           FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
