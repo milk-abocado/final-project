@@ -224,6 +224,11 @@ public class MenusService {
     }
 
     public List<MenusResponse> getMenusByStore(Long storeId) {
+
+        // 가게 존재 여부 확인
+        storesRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
+
         List<Menus> menus = menusRepository.findByStoreId(storeId);
         return menus.stream().map(menu -> {
             List<MenuCategories> categories = categoriesRepository.findByMenuId(menu.getId());
