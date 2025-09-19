@@ -36,7 +36,7 @@ public class SlackService {
                     .text(text)
             );
         } catch (Exception e) {
-            throw new SlackException("메세지 전송 실패", e);
+            throw new SlackException("메세지 전송을 실패하였습니다.", e);
         }
     }
 }
