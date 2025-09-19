@@ -24,6 +24,7 @@ public class OrdersUserController {
         return ResponseEntity.status(status).body(msg);
     }
 
+    // 주문 조회 (해당 유저가 주문한 목록)
     @GetMapping("/orders")
     public ResponseEntity<?> getOrdersByUser(
             @RequestHeader Long userId,

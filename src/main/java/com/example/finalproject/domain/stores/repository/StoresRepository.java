@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -48,6 +49,10 @@ public interface StoresRepository extends JpaRepository<Stores, Long> {
 
     /** 조회 시 ACTIVE만 보이게 하고 싶을 때 사용 (폐업 제외) */
     Optional<Stores> findByIdAndActiveTrueAndRetiredAtIsNull(Long id);
+
+    /** 특정 오너가 소유한 가게의 storeId 리스트 가져오기 */
+    @Query(value = "SELECT id FROM stores WHERE owner_id = :ownerId", nativeQuery = true)
+    List<Long> findStoreIdsByOwnerId(@Param("ownerId") Long ownerId);
 
     /**
      * 이름 부분검색 + 좌표 반경 필터 + 거리 정렬

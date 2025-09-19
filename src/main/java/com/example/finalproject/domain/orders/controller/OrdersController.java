@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.orders.controller;
 
+import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.orders.dto.request.OrderStatusRequest;
 import com.example.finalproject.domain.orders.dto.request.OrdersRequest;
 import com.example.finalproject.domain.orders.dto.response.OrderStatusResponse;
@@ -23,6 +24,7 @@ public class OrdersController {
     }
 
     // 접근 권한 및 로그인 확인 예외처리 제외하고 구현 <- 추후 로그인 기능과 merge 했을 때 합칠 예정
+    // 주문 생성
     @PostMapping
     public ResponseEntity<?> createOrder(
             @RequestHeader Long userId,
@@ -38,6 +40,7 @@ public class OrdersController {
         }
     }
 
+    // 주문 수정
     @PatchMapping("/{orderId}")
     public ResponseEntity<?> updateStatus(
             @PathVariable Long orderId,
@@ -53,11 +56,30 @@ public class OrdersController {
         }
     }
 
+    // 주문 단건 조회
     @GetMapping("/{orderId}")
     public ResponseEntity<?> getOrder(@PathVariable Long orderId) {
         try{
-        OrdersResponse resp = ordersService.getOrder(orderId);
-        return ResponseEntity.ok(resp);
+            OrdersResponse resp = ordersService.getOrder(orderId);
+            return ResponseEntity.ok(resp);
+        } catch (IllegalArgumentException e) {
+            return str(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+        }
+    }
+
+    // 주문 내역 삭제
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<?> deleteOrder(
+            @RequestHeader Long userId,
+            @PathVariable Long orderId)
+    {
+        try{
+            ordersService.deleteOrder(userId, orderId);
+            return ResponseEntity.ok().build();
+        } catch (AccessDeniedException e) {
+            return str(HttpStatus.FORBIDDEN, e.getMessage());
         } catch (IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (Exception e) {
