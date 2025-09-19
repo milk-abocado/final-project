@@ -4,10 +4,7 @@ import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.menus.dto.request.MenuOptionChoicesRequest;
 import com.example.finalproject.domain.menus.dto.request.MenuOptionsRequest;
 import com.example.finalproject.domain.menus.dto.request.MenusRequest;
-import com.example.finalproject.domain.menus.dto.response.MenuOptionChoicesResponse;
-import com.example.finalproject.domain.menus.dto.response.MenuOptionsResponse;
-import com.example.finalproject.domain.menus.dto.response.MenusCategoriesResponse;
-import com.example.finalproject.domain.menus.dto.response.MenusResponse;
+import com.example.finalproject.domain.menus.dto.response.*;
 import com.example.finalproject.domain.menus.entity.MenuCategories;
 import com.example.finalproject.domain.menus.entity.MenuOptionChoices;
 import com.example.finalproject.domain.menus.entity.MenuOptions;
@@ -223,7 +220,7 @@ public class MenusService {
         );
     }
 
-    public List<MenusResponse> getMenusByStore(Long storeId) {
+    public List<MenusSimpleResponse> getMenusByStore(Long storeId) {
 
         // 가게 존재 여부 확인
         storesRepository.findById(storeId)
@@ -235,22 +232,13 @@ public class MenusService {
             List<MenusCategoriesResponse> categoryResponses = categories.stream()
                     .map(MenusCategoriesResponse::new).toList();
 
-            List<MenuOptions> options = optionsRepository.findByMenuId(menu.getId());
-            List<MenuOptionsResponse> optionResponses = options.stream().map(opt -> {
-                List<MenuOptionChoices> choices = choicesRepository.findByGroupId(opt.getId());
-                List<MenuOptionChoicesResponse> choiceResponses = choices.stream()
-                        .map(MenuOptionChoicesResponse::new).toList();
-                return new MenuOptionsResponse(opt, choiceResponses);
-            }).toList();
-
-            return new MenusResponse(
+            return new MenusSimpleResponse(
                     menu.getId(),
                     menu.getStore().getId(),
                     menu.getName(),
                     menu.getPrice(),
                     menu.getStatus().name(),
-                    categoryResponses,
-                    optionResponses
+                    categoryResponses
             );
         }).toList();
     }

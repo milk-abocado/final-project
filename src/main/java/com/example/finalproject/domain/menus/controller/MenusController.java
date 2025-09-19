@@ -2,6 +2,7 @@ package com.example.finalproject.domain.menus.controller;
 
 
 import com.example.finalproject.domain.menus.dto.response.MenusResponse;
+import com.example.finalproject.domain.menus.dto.response.MenusSimpleResponse;
 import com.example.finalproject.domain.menus.service.MenusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -45,7 +46,7 @@ public class MenusController {
     @GetMapping
     public ResponseEntity<?> getMenusByStore(@PathVariable Long storeId) {
         try {
-            List<MenusResponse> menus = menusService.getMenusByStore(storeId);
+            List<MenusSimpleResponse> menus = menusService.getMenusByStore(storeId);
             return ResponseEntity.ok(menus);
         } catch (IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
