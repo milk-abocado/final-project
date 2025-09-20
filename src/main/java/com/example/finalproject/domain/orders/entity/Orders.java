@@ -37,7 +37,7 @@ public class Orders {
     private LocalDateTime updatedAt;
 
     public enum Status {
-        WAITING, ACCEPTED, DELIVERING, COMPLETED, REJECTED, CANCELED
+        WAITING, ACCEPTED, COOKING, DELIVERING, COMPLETED, REJECTED, CANCELED
     }
 }
 
