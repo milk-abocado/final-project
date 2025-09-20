@@ -83,4 +83,79 @@ public class MenusOwnerController {
         }
 
     }
+
+    // 카테고리 단일 삭제
+    @DeleteMapping("/{menuId}/categories/{categoryId}")
+    public ResponseEntity<?> deleteCategory(
+            Authentication authentication,
+            @PathVariable Long storeId,
+            @PathVariable Long menuId,
+            @PathVariable Long categoryId) {
+        try {
+            menusService.deleteCategory(menuId, categoryId, authentication, storeId);
+            return ResponseEntity.ok("카테고리가 삭제되었습니다.");
+        } catch (AccessDeniedException e) {
+            return str(HttpStatus.FORBIDDEN, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return str(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+        }
+    }
+
+    // 카테고리 전체 삭제
+    @DeleteMapping("/{menuId}/categories")
+    public ResponseEntity<?> deleteAllCategories(
+            Authentication authentication,
+            @PathVariable Long storeId,
+            @PathVariable Long menuId) {
+        try {
+            menusService.deleteAllCategories(menuId, authentication, storeId);
+            return ResponseEntity.ok("카테고리가 전체 삭제되었습니다.");
+        } catch (AccessDeniedException e) {
+            return str(HttpStatus.FORBIDDEN, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return str(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+        }
+    }
+
+    // 옵션 그룹 단일 삭제
+    @DeleteMapping("/{menuId}/options/{optionGroupId}")
+    public ResponseEntity<?> deleteOptionGroup(
+            Authentication authentication,
+            @PathVariable Long storeId,
+            @PathVariable Long menuId,
+            @PathVariable Long optionGroupId) {
+        try {
+            menusService.deleteOptionGroup(menuId, optionGroupId, authentication, storeId);
+            return ResponseEntity.ok("옵션 그룹이 삭제되었습니다.");
+        } catch (AccessDeniedException e) {
+            return str(HttpStatus.FORBIDDEN, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return str(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+        }
+    }
+
+    // 옵션 그룹 전체 삭제
+    @DeleteMapping("/{menuId}/options")
+    public ResponseEntity<?> deleteAllOptionGroups(
+            Authentication authentication,
+            @PathVariable Long storeId,
+            @PathVariable Long menuId) {
+        try {
+            menusService.deleteAllOptionGroups(menuId, authentication, storeId);
+            return ResponseEntity.ok("옵션 그룹이 전체 삭제되었습니다.");
+        } catch (AccessDeniedException e) {
+            return str(HttpStatus.FORBIDDEN, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return str(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+        }
+    }
+
 }

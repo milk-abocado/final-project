@@ -115,6 +115,7 @@ public class MenusService {
         return getMenu(menu.getId(), storeId);
     }
 
+    // 이름, 가격만 수정 가능
     @Transactional
     public MenusResponse updateMenu(Authentication authentication, Long menuId, Long storeId, MenusRequest request) {
 
@@ -128,6 +129,49 @@ public class MenusService {
         menu.setPrice(request.getPrice() != null ? request.getPrice() : menu.getPrice());
         if (request.getStatus() != null) menu.setStatus(Menus.MenuStatus.valueOf(request.getStatus()));
         menusRepository.save(menu);
+
+        // 카테고리
+        if (request.getCategories() != null) {
+            categoriesRepository.deleteAll(categoriesRepository.findByMenuId(menuId));
+            for (String cat : request.getCategories()) {
+                MenuCategories category = new MenuCategories();
+                category.setMenu(menu);
+                category.setCategory(cat);
+                categoriesRepository.save(category);
+            }
+        }
+
+        // 옵션
+        if (request.getOptions() != null) {
+            List<MenuOptions> existingOptions = optionsRepository.findByMenuId(menuId);
+            for (MenuOptions opt : existingOptions) {
+                choicesRepository.deleteAll(choicesRepository.findByGroupId(opt.getId()));
+            }
+            optionsRepository.deleteAll(existingOptions);
+
+            for (MenuOptionsRequest optReq : request.getOptions()) {
+                if (Boolean.TRUE.equals(optReq.getIsRequired()) && (optReq.getMinSelect() == null || optReq.getMinSelect() < 1)) {
+                    throw new IllegalArgumentException("필수 옵션("+optReq.getOptionsName()+")의 최소 선택 수는 1 이상이어야 합니다.");
+                }
+                MenuOptions option = new MenuOptions();
+                option.setMenu(menu);
+                option.setOptionsName(optReq.getOptionsName());
+                option.setIsRequired(optReq.getIsRequired());
+                option.setMinSelect(optReq.getMinSelect());
+                option.setMaxSelect(optReq.getMaxSelect());
+                optionsRepository.save(option);
+
+                if (optReq.getChoices() != null) {
+                    for (MenuOptionChoicesRequest choiceReq : optReq.getChoices()) {
+                        MenuOptionChoices choice = new MenuOptionChoices();
+                        choice.setGroup(option);
+                        choice.setChoiceName(choiceReq.getChoiceName());
+                        choice.setExtraPrice(choiceReq.getExtraPrice());
+                        choicesRepository.save(choice);
+                    }
+                }
+            }
+        }
 
         return getMenu(menu.getId(), storeId);
     }
@@ -205,4 +249,58 @@ public class MenusService {
             );
         }).toList();
     }
+
+    @Transactional
+    public void deleteCategory(Long menuId, Long categoryId, Authentication authentication, Long storeId) {
+        // 권한 체크
+        verifiedUser(authentication, storeId);
+
+        MenuCategories category = categoriesRepository.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다."));
+
+        if (!category.getMenu().getId().equals(menuId)) {
+            throw new AccessDeniedException("해당 메뉴의 카테고리가 아닙니다.");
+        }
+
+        categoriesRepository.delete(category);
+    }
+
+    @Transactional
+    public void deleteAllCategories(Long menuId, Authentication authentication, Long storeId) {
+        // 권한 체크
+        verifiedUser(authentication, storeId);
+
+        List<MenuCategories> categories = categoriesRepository.findByMenuId(menuId);
+        categoriesRepository.deleteAll(categories);
+    }
+
+    @Transactional
+    public void deleteOptionGroup(Long menuId, Long optionGroupId, Authentication authentication, Long storeId) {
+        // 권한 체크
+        verifiedUser(authentication, storeId);
+
+        MenuOptions optionGroup = optionsRepository.findById(optionGroupId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 옵션 그룹입니다."));
+
+        if (!optionGroup.getMenu().getId().equals(menuId)) {
+            throw new AccessDeniedException("해당 메뉴의 옵션 그룹이 아닙니다.");
+        }
+
+        // 그룹 내 선택지 먼저 삭제
+        choicesRepository.deleteAll(choicesRepository.findByGroupId(optionGroupId));
+        optionsRepository.delete(optionGroup);
+    }
+
+    @Transactional
+    public void deleteAllOptionGroups(Long menuId, Authentication authentication, Long storeId) {
+        // 권한 체크
+        verifiedUser(authentication, storeId);
+
+        List<MenuOptions> optionGroups = optionsRepository.findByMenuId(menuId);
+        for (MenuOptions opt : optionGroups) {
+            choicesRepository.deleteAll(choicesRepository.findByGroupId(opt.getId()));
+        }
+        optionsRepository.deleteAll(optionGroups);
+    }
+
 }
