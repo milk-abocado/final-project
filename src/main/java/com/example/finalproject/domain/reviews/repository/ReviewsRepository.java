@@ -5,6 +5,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Optional;
+
 /**
  * ReviewsRepository
  * -------------------------------------------------
@@ -55,5 +57,27 @@ public interface ReviewsRepository extends JpaRepository<Reviews, Long> {
     Page<Reviews> findByUserIdAndStoreIdAndIsDeletedFalseAndRatingBetweenOrderByCreatedAtDesc(
             Long userId, Long storeId, Integer minRating, Integer maxRating, Pageable pageable
     );
+
+    /**
+     * 특정 리뷰가 특정 가게(storeId)와 가게 주인(ownerId)에 속하는지 조회
+     * (리뷰 소유권 및 접근 권한 확인 용도)
+     *
+     * @param id      리뷰 ID
+     * @param storeId 가게 ID
+     * @param ownerId 가게 주인(사장님) ID
+     * @return        리뷰 정보(Optional)
+     */
+    Optional<Reviews> findByIdAndStore_IdAndStore_Owner_Id(Long id, Long storeId, Long ownerId);
+
+    /**
+     * 특정 리뷰가 특정 가게(storeId)와 가게 주인(ownerId)에 속하는지 여부 확인
+     * (리뷰 소유권 및 접근 권한 확인 용도)
+     *
+     * @param id      리뷰 ID
+     * @param storeId 가게 ID
+     * @param ownerId 가게 주인(사장님) ID
+     * @return        존재 여부 (true = 존재)
+     */
+    boolean existsByIdAndStore_IdAndStore_Owner_Id(Long id, Long storeId, Long ownerId);
 }
 
