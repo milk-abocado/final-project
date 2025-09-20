@@ -1,11 +1,13 @@
 package com.example.finalproject.domain.orders.controller;
 
 import com.example.finalproject.domain.carts.exception.AccessDeniedException;
+import com.example.finalproject.domain.coupons.exception.CouponException;
 import com.example.finalproject.domain.orders.dto.request.OrderStatusRequest;
 import com.example.finalproject.domain.orders.dto.request.OrdersRequest;
 import com.example.finalproject.domain.orders.dto.response.OrderStatusResponse;
 import com.example.finalproject.domain.orders.dto.response.OrdersResponse;
 import com.example.finalproject.domain.orders.service.OrdersService;
+import com.example.finalproject.domain.points.exception.PointException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -61,10 +63,8 @@ public class OrdersController {
 
         } catch (AccessDeniedException e) {
             return str(HttpStatus.FORBIDDEN, e.getMessage());
-        } catch (IllegalArgumentException e) {
+        } catch ( CouponException | PointException | IllegalArgumentException e) {
             return str(HttpStatus.BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
         }
     }
 

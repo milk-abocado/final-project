@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.orders.entity;
 
+import com.example.finalproject.domain.coupons.entity.Coupons;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.users.entity.Users;
 import jakarta.persistence.*;
@@ -32,6 +33,12 @@ public class Orders {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status;
+
+    @ManyToOne
+    @JoinColumn(name = "applied_coupon_id")
+    private Coupons appliedCoupon;
+
+    private Integer usedPoints;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
