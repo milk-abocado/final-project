@@ -170,10 +170,10 @@ CREATE TABLE menu_option_choices (
 -- 4. 주문(Orders)
 CREATE TABLE orders (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id     BIGINT                                                                          NOT NULL,
-    store_id    BIGINT                                                                          NOT NULL,
-    total_price INT                                                                             NOT NULL,
-    status      ENUM ('WAITING', 'ACCEPTED', 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCELED') NOT NULL, -- 주문 상태
+    user_id     BIGINT                                                                                   NOT NULL,
+    store_id    BIGINT                                                                                   NOT NULL,
+    total_price INT                                                                                      NOT NULL,
+    status      ENUM ('WAITING', 'ACCEPTED','COOKING' 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCELED') NOT NULL, -- 주문 상태
     -- REJECTED, CANCLED 추가 - 주문 거절(사장, 사용자), 주문 취소(고객센터)
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
