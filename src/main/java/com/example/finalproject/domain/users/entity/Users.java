@@ -19,19 +19,19 @@ public class Users {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, unique = true, length = 100)
     private String email;
 
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Column(nullable = false, length = 100)
     private String nickname;
 
-    @Column(name = "phone_number", length = 30)
+    @Column(name = "phone_number", length = 15)
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
@@ -44,7 +44,7 @@ public class Users {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false, length = 100)
     private String address;
 
     @Column(length = 255)

@@ -21,6 +21,8 @@ CREATE TABLE users (
     nickname            VARCHAR(100),
     phone_number        VARCHAR(15),
     address             VARCHAR(100),
+    address_detail       VARCHAR(255),
+    zip_code             VARCHAR(10),
     role                ENUM ('USER', 'OWNER','ADMIN') NOT NULL, -- USER / OWNER / ADMIN
     social_login        BOOLEAN                                 DEFAULT FALSE,
     created_at          TIMESTAMP                               DEFAULT CURRENT_TIMESTAMP,
