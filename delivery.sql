@@ -173,7 +173,7 @@ CREATE TABLE orders (
     user_id     BIGINT                                                                          NOT NULL,
     store_id    BIGINT                                                                          NOT NULL,
     total_price INT                                                                             NOT NULL,
-    status      ENUM ('WAITING', 'ACCEPTED', 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCELED') NOT NULL, -- 주문 상태
+    status      ENUM ('WAITING', 'ACCEPTED','COOKING' 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCELED') NOT NULL, -- 주문 상태
     -- REJECTED, CANCLED 추가 - 주문 거절(사장, 사용자), 주문 취소(고객센터)
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -316,30 +316,4 @@ ALTER TABLE user_coupons
 
 CREATE INDEX idx_reviews_is_deleted ON reviews (is_deleted);
 
-# -- 임시 OWNER 유저 생성
-# INSERT INTO users (email, password, name, role, created_at)
-# VALUES ('owner1@example.com', '{bcrypt-or-temp}', '홍길동', 'OWNER', NOW());
-#
-# -- 방금 생성된 OWNER의 id를 변수에 저장
-# SET @owner_id := LAST_INSERT_ID();
-#
-# -- 임시 USER 유저 생성
-# INSERT INTO users (email, password, name, role, created_at)
-# VALUES ('user1@example.com', '{bcrypt-or-temp}', '김철수', 'USER', NOW());
-#
-# -- 생성된 USER id 확인
-# SELECT LAST_INSERT_ID() AS new_user_id;
-#
-# INSERT INTO users (email, password, name, role, created_at)
-# VALUES ('user2@example.com', '{bcrypt-or-temp}', '이영희', 'USER', NOW());
-#
-# -- 생성된 USER id 확인
-# SELECT LAST_INSERT_ID() AS new_user_id;
-#
-# -- 테스트용 메뉴 추가
-# INSERT INTO menus (store_id, name, price, status) VALUES (1, '김밥', 5000, 'ACTIVE');
-# INSERT INTO menus (store_id, name, price, status) VALUES (1, '라면', 3000, 'ACTIVE');
-# INSERT INTO menus (store_id, name, price, status) VALUES (1, '떡볶이', 4000, 'ACTIVE');
-#
-# INSERT INTO menus (store_id, name, price, status) VALUES (2, '명란파스타', 15000, 'ACTIVE');
-# INSERT INTO menus (store_id, name, price, status) VALUES (2, '해물오일파스타', 18000, 'ACTIVE');
+ALTER TABLE notifications MODIFY COLUMN user_id BIGINT NULL;
