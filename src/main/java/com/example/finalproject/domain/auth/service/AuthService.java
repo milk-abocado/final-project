@@ -95,10 +95,8 @@ public class AuthService {
         return userRepository.save(u);
     }
 
-    // ====================================================================
-    // 로그인
-    // ====================================================================
-    public Map<String, Object> login(LoginRequest req) {
+     // 로그인
+     public Map<String, Object> login(LoginRequest req) {
         Users u = userRepository.findByEmailAndDeletedFalse(req.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("invalid login"));
         if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
