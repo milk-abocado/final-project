@@ -125,7 +125,6 @@ public class MenusService {
         return getMenu(menu.getId(), storeId);
     }
 
-    // 이름, 가격만 수정 가능
     @Transactional
     public MenusResponse updateMenu(Authentication authentication, Long menuId, Long storeId, MenusRequest request) {
 
@@ -139,49 +138,6 @@ public class MenusService {
         menu.setPrice(request.getPrice() != null ? request.getPrice() : menu.getPrice());
         if (request.getStatus() != null) menu.setStatus(Menus.MenuStatus.valueOf(request.getStatus()));
         menusRepository.save(menu);
-
-        // 카테고리
-        if (request.getCategories() != null) {
-            categoriesRepository.deleteAll(categoriesRepository.findByMenuId(menuId));
-            for (String cat : request.getCategories()) {
-                MenuCategories category = new MenuCategories();
-                category.setMenu(menu);
-                category.setCategory(cat);
-                categoriesRepository.save(category);
-            }
-        }
-
-        // 옵션
-        if (request.getOptions() != null) {
-            List<MenuOptions> existingOptions = optionsRepository.findByMenuId(menuId);
-            for (MenuOptions opt : existingOptions) {
-                choicesRepository.deleteAll(choicesRepository.findByGroupId(opt.getId()));
-            }
-            optionsRepository.deleteAll(existingOptions);
-
-            for (MenuOptionsRequest optReq : request.getOptions()) {
-                if (Boolean.TRUE.equals(optReq.getIsRequired()) && (optReq.getMinSelect() == null || optReq.getMinSelect() < 1)) {
-                    throw new IllegalArgumentException("필수 옵션("+optReq.getOptionsName()+")의 최소 선택 수는 1 이상이어야 합니다.");
-                }
-                MenuOptions option = new MenuOptions();
-                option.setMenu(menu);
-                option.setOptionsName(optReq.getOptionsName());
-                option.setIsRequired(optReq.getIsRequired());
-                option.setMinSelect(optReq.getMinSelect());
-                option.setMaxSelect(optReq.getMaxSelect());
-                optionsRepository.save(option);
-
-                if (optReq.getChoices() != null) {
-                    for (MenuOptionChoicesRequest choiceReq : optReq.getChoices()) {
-                        MenuOptionChoices choice = new MenuOptionChoices();
-                        choice.setGroup(option);
-                        choice.setChoiceName(choiceReq.getChoiceName());
-                        choice.setExtraPrice(choiceReq.getExtraPrice());
-                        choicesRepository.save(choice);
-                    }
-                }
-            }
-        }
 
         return getMenu(menu.getId(), storeId);
     }
