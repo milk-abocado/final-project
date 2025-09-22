@@ -157,4 +157,4 @@ public class SearchesService {
 
         searchesRepository.delete(searches);
     }
-}
+    }

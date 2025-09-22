@@ -106,3 +106,5 @@ public class SearchesController {
         return ResponseEntity.ok(response);
     }
 }
+
+
