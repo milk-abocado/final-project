@@ -1,6 +1,9 @@
 package com.example.finalproject.domain.auth.service;
 
-import com.example.finalproject.domain.auth.dto.password.*;
+import com.example.finalproject.domain.auth.dto.password.ChangePasswordRequest;
+import com.example.finalproject.domain.auth.dto.password.ConfirmResetPasswordRequest;
+import com.example.finalproject.domain.auth.dto.password.SendResetCodeRequest;
+import com.example.finalproject.domain.auth.dto.password.VerifyResetCodeRequest;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,18 +31,19 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final PasswordMailService mailService;
 
-    private String codeKey(String email)   { return "PW:code:"     + email.toLowerCase(); }
-    private String triesKey(String email)  { return "PW:tries:"    + email.toLowerCase(); }
-    private String rateKey(String email)   { return "RL:pwreq:"    + email.toLowerCase(); }
-    private String verifiedKey(String email){ return "PW:verified:" + email.toLowerCase(); } // ✅ 검증 플래그
+    private String codeKey(String email)     { return "PW:code:"      + email.toLowerCase(); }
+    private String triesKey(String email)    { return "PW:tries:"     + email.toLowerCase(); }
+    private String rateKey(String email)     { return "RL:pwreq:"     + email.toLowerCase(); }
+    private String verifiedKey(String email) { return "PW:verified:"  + email.toLowerCase(); }
 
-
+    /** 6자리 숫자 코드 생성 */
     private String genCode() {
         SecureRandom r = new SecureRandom();
         int n = r.nextInt(1_000_000); // 0~999999
         return String.format("%06d", n);
     }
 
+    /** [분실용] 코드 전송 (익명) */
     public void sendCode(SendResetCodeRequest req) {
         String email = req.email().toLowerCase();
 
@@ -52,19 +56,18 @@ public class PasswordResetService {
             throw new IllegalStateException("요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
         }
 
-        // 유저 존재 시에만 실제 저장/발송 (없어도 동일 응답)
+        // 유저가 존재할 때만 실제 코드 저장/발송 (없어도 항상 같은 응답을 주어 정보 노출 방지)
         Optional<Users> maybe = usersRepository.findByEmail(email);
         if (maybe.isPresent()) {
             String code = genCode();
             redis.opsForValue().set(codeKey(email), code, CODE_TTL);
             redis.delete(triesKey(email));
-            // 이전 검증 플래그는 안전을 위해 제거
-            redis.delete(verifiedKey(email));
+            redis.delete(verifiedKey(email)); // 이전 검증 플래그 제거
             mailService.sendResetCode(email, code);
         }
-        // 컨트롤러에서 항상 200 OK 반환
     }
 
+    /** [선택] 코드 사전 검증 (익명) — 성공 시 검증 플래그 저장 */
     public boolean verifyCode(VerifyResetCodeRequest req) {
         String email = req.email().toLowerCase();
         String saved = redis.opsForValue().get(codeKey(email));
@@ -80,7 +83,7 @@ public class PasswordResetService {
 
         boolean ok = saved.equals(req.code());
         if (ok) {
-            // 검증 완료 플래그 설정
+            // 검증 완료 플래그 설정(코드 TTL과 동일)
             redis.opsForValue().set(verifiedKey(email), "1", CODE_TTL);
             // 코드/시도 카운터 소진
             try {
@@ -92,6 +95,50 @@ public class PasswordResetService {
     }
 
     @Transactional
+    public void confirm(ConfirmResetPasswordRequest req) {
+        String email = req.email().toLowerCase();
+        String saved = redis.opsForValue().get(codeKey(email));
+        if (saved == null || !saved.equals(req.code())) {
+            Long t = redis.opsForValue().increment(triesKey(email));
+            if (t != null && t == 1) redis.expire(triesKey(email), CODE_TTL);
+            throw new IllegalArgumentException("코드가 유효하지 않거나 만료되었습니다.");
+        }
+
+        Users user = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("계정을 찾을 수 없습니다."));
+        user.setPassword(passwordEncoder.encode(req.newPassword()));
+        usersRepository.save(user);
+
+        try {
+            redis.delete(codeKey(email));
+            redis.delete(triesKey(email));
+            redis.delete(verifiedKey(email));
+        } catch (DataAccessException ignored) {}
+
+    }
+
+    @Transactional
+    public void change(String email, ChangePasswordRequest req) {
+        email = email.toLowerCase();
+
+        if (!req.newPassword().equals(req.confirmPassword())) {
+            throw new IllegalArgumentException("PASSWORD_MISMATCH");
+        }
+
+        Users user = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
+
+        if (!passwordEncoder.matches(req.oldPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("INVALID_OLD_PASSWORD");
+        }
+
+        user.setPassword(passwordEncoder.encode(req.newPassword()));
+        usersRepository.save(user);
+
+    }
+
+
+    @Transactional
     public void changeAfterVerified(String email, ChangePasswordRequest req) {
         email = email.toLowerCase();
 
@@ -101,7 +148,7 @@ public class PasswordResetService {
             throw new IllegalStateException("NOT_VERIFIED"); // 코드 검증 미완료 또는 만료
         }
 
-        // 2) 새 비밀번호 확인 일치
+        // 2) 새 비밀번호 확인
         if (!req.newPassword().equals(req.confirmPassword())) {
             throw new IllegalArgumentException("PASSWORD_MISMATCH");
         }
@@ -120,6 +167,5 @@ public class PasswordResetService {
 
         // 5) 플래그 소진 (1회성)
         try { redis.delete(verifiedKey(email)); } catch (DataAccessException ignored) {}
-
     }
 }

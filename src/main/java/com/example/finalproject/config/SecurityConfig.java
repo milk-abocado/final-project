@@ -8,15 +8,12 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import jakarta.servlet.http.HttpServletResponse; // ★ jakarta 로 교체
-import java.io.IOException;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @RequiredArgsConstructor
@@ -30,8 +27,23 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/login", "/signup","/oauth/").permitAll()
+
+                        .requestMatchers(HttpMethod.POST,
+                                "/auth/signup",
+                                "/auth/login",
+                                "/auth/password/reset/code",
+                                "/auth/password/reset/verify",
+                                "/auth/password/reset/confirm"   // 분실용 confirm (익명)
+                        ).permitAll()
+                        .requestMatchers("/oauth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/public/**").permitAll()
+
+                        // 🔐 일반 변경(로그인 필요)
+                        .requestMatchers(HttpMethod.POST,
+                                "/auth/password/change",
+                                "/auth/password/change-secure"
+                        ).authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
@@ -40,39 +52,31 @@ public class SecurityConfig {
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
-        return cfg.getAuthenticationManager();
-    }
-
-    @Bean
     public AuthenticationEntryPoint authenticationEntryPoint() {
-        return (request, response, authException) -> {
-            // 선택: 401 응답에 WWW-Authenticate 헤더 추가
+        return (request, response, ex) -> {
             response.setHeader("WWW-Authenticate", "Bearer");
-            writeJson(response, 401,
-                    "{\"error\":\"unauthorized\",\"message\":\"Authentication required\"}");
+            if (!response.isCommitted()) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                response.getWriter().write("{\"error\":\"unauthorized\",\"message\":\"Authentication required\"}");
+            }
         };
     }
 
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, accessDeniedException) -> writeJson(response, 403,
-                "{\"error\":\"forbidden\",\"message\":\"Access denied\"}");
-    }
-
-    private void writeJson(HttpServletResponse response, int status, String body) throws IOException {
-        // 이미 커밋된 응답이면 더 이상 쓰지 않음(예외 방지)
-        if (response.isCommitted()) return;
-
-        response.setStatus(status);
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(body);
-        response.getWriter().flush();
+        return (request, response, ex) -> {
+            if (!response.isCommitted()) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 403
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                response.getWriter().write("{\"error\":\"forbidden\",\"message\":\"Access denied\"}");
+            }
+        };
     }
 }
