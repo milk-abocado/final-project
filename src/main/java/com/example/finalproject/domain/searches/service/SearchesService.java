@@ -9,6 +9,7 @@ import com.example.finalproject.domain.users.repository.UsersRepository;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.Comparator;
 import java.util.List;
