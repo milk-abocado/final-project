@@ -4,6 +4,7 @@ import com.example.finalproject.domain.notifications.dto.request.NotificationMes
 import com.example.finalproject.domain.notifications.entity.Notification;
 import com.example.finalproject.domain.notifications.exception.NotificationException;
 import com.example.finalproject.domain.notifications.repository.NotificationRepository;
+import com.example.finalproject.domain.slack.service.SlackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 public class AdminNotificationController {
 
     private final NotificationRepository notificationRepository;
+    private final SlackService slackService;
+
 
     // 특정 사용자 알림
     @PostMapping("/users/{userId}")
@@ -26,6 +29,8 @@ public class AdminNotificationController {
             notification.setMessage(req.getMessage());
             notificationRepository.save(notification);
 
+            // Slack 전송
+            slackService.sendUserMessage("[개인 알림] " + req.getMessage());
             // SSE 전송
             SseController.sendToUser(userId, "[개인 알림] " + req.getMessage());
             return "개인 알림 전송 완료";
@@ -45,6 +50,8 @@ public class AdminNotificationController {
             notification.setMessage(req.getMessage());
             notificationRepository.save(notification);
 
+            // Slack 전송
+            slackService.sendAllUserMessage("[전체 알림] " + req.getMessage());
             // SSE 전송
             SseController.sendToAll("[전체 알림] " + req.getMessage());
             return "전체 알림 전송 완료";
