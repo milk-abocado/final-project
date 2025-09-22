@@ -19,17 +19,24 @@ import com.example.finalproject.domain.orders.entity.Orders;
 import com.example.finalproject.domain.orders.repository.OrderItemsRepository;
 import com.example.finalproject.domain.orders.repository.OrderOptionsRepository;
 import com.example.finalproject.domain.orders.repository.OrdersRepository;
+import com.example.finalproject.domain.slack.service.SlackService;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
+import com.example.finalproject.domain.orders.util.OrderSlackMessage;
+
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,6 +51,7 @@ public class OrdersService {
     private final OrderItemsRepository orderItemsRepository;
     private final OrderOptionsRepository orderOptionsRepository;
     private final CartsService cartsService; // Redis에서 장바구니 조회
+    private final SlackService slackService;
 
     @Transactional
     public OrdersResponse createOrder(Long userId, OrdersRequest request) {
@@ -61,7 +69,6 @@ public class OrdersService {
         // Store 조회
         Stores store = storesRepository.findById(cart.getStoreId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
-
 
         // Orders 엔티티 생성
         Orders order = new Orders();
@@ -104,13 +111,51 @@ public class OrdersService {
         // 주문 생성 후 장바구니 비우기
         cartsService.clearCart(userId);
 
+        // 사장님 채널로 새 주문 알림
+        slackService.sendOwnerMessage("[사장님 알림] 새 주문이 들어왔습니다.️");
+        // 사용자 채널로 주문 대기 알림
+        slackService.sendUserMessage(OrderSlackMessage.of("WAITING"));
+
         return buildOrderResponse(order);
     }
 
     @Transactional
-    public OrderStatusResponse updateOrderStatus(Long orderId, String statusStr) {
+    public OrderStatusResponse updateOrderStatus(Authentication authentication, Long orderId, String statusStr) {
+
+        // 로그인한 사용자의 userId 가져오기
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
+
+        // 주문 확인
         Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+
+        // OWNER 권한 여부 확인
+        boolean isOwner = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r)
+                .anyMatch(r -> r.equalsIgnoreCase("OWNER"));
+
+        // USER 권한 여부 확인
+        boolean isUser = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r)
+                .anyMatch(r -> r.equalsIgnoreCase("USER"));
+
+        // OWNER: 가게 주인인지 확인
+        if (isOwner) {
+            Long storeOwnerId = order.getStore().getOwner().getId(); // Stores 엔티티에 owner 필요
+            if (!storeOwnerId.equals(userId)) {
+                throw new AccessDeniedException("이 가게의 OWNER만 접근할 수 있습니다.");
+            }
+        }
+        // USER: 주문자 본인인지 확인
+        else if (isUser) {
+            if (!order.getUser().getId().equals(userId)) {
+                throw new AccessDeniedException("본인 주문만 접근할 수 있습니다.");
+            }
+        }
 
         Orders.Status status;
         try {
@@ -123,6 +168,16 @@ public class OrdersService {
         order.setUpdatedAt(LocalDateTime.now());
         ordersRepository.save(order);
 
+        // 사용자 채널로 상태별 알림
+        String slackMsg = OrderSlackMessage.of(status.name());
+        slackService.sendUserMessage(slackMsg);
+
+        // 상태 : COMPLETED(배달 완료)시 사장님도 배달 완료 알림 받도록 구현
+        if (status == Orders.Status.COMPLETED) {
+            slackService.sendOwnerMessage("[사장님 알림] 배달이 완료되었습니다.");
+        }
+
+
         OrderStatusResponse resp = new OrderStatusResponse();
         resp.setOrderId(order.getId());
         resp.setStoreId(order.getStore().getId());
@@ -133,9 +188,43 @@ public class OrdersService {
     }
 
     @Transactional(readOnly = true)
-    public OrdersResponse getOrder(Long orderId) {
+    public OrdersResponse getOrder(Authentication authentication, Long orderId) {
+
+        // 로그인한 사용자의 userId 가져오기
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
+
+        // 주문 확인
         Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+
+        // OWNER 권한 여부 확인
+        boolean isOwner = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r)
+                .anyMatch(r -> r.equalsIgnoreCase("OWNER"));
+
+        // USER 권한 여부 확인
+        boolean isUser = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r)
+                .anyMatch(r -> r.equalsIgnoreCase("USER"));
+
+        // OWNER: 가게 주인인지 확인
+        if (isOwner) {
+            Long storeOwnerId = order.getStore().getOwner().getId(); // Stores 엔티티에 owner 필요
+            if (!storeOwnerId.equals(userId)) {
+                throw new AccessDeniedException("이 가게의 OWNER만 접근할 수 있습니다.");
+            }
+        }
+        // USER: 주문자 본인인지 확인
+        else if (isUser) {
+            if (!order.getUser().getId().equals(userId)) {
+                throw new AccessDeniedException("본인 주문만 접근할 수 있습니다.");
+            }
+        }
+
         return buildOrderResponse(order);
     }
 
@@ -229,5 +318,7 @@ public class OrdersService {
 
         return response;
     }
+
+
 
 }

@@ -1,28 +1,32 @@
 package com.example.finalproject.domain.stores.controller;
 
-import com.example.finalproject.domain.stores.auth.Role;
-import com.example.finalproject.domain.stores.auth.SecurityUtil;
 import com.example.finalproject.domain.stores.category.StoreCategory;
 import com.example.finalproject.domain.stores.dto.response.StoreDetailResponse;
 import com.example.finalproject.domain.stores.dto.response.StoreListItemResponse;
 import com.example.finalproject.domain.stores.exception.ApiException;
 import com.example.finalproject.domain.stores.exception.ErrorCode;
 import com.example.finalproject.domain.stores.service.StoreQueryService;
+import com.example.finalproject.domain.users.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Collection;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
 public class StoreQueryController {
 
     private final StoreQueryService storeQueryService;
-    private final SecurityUtil security;
 
     /**
      * 가게 검색
@@ -67,13 +71,29 @@ public class StoreQueryController {
         return ResponseEntity.ok(storeQueryService.getOne(storeId));
     }
 
-    /**
-     * 가게 단건 상세 조회 (오너 전용)
+    /** 가게 단건 상세 조회 (오너 전용)
      * - 현재 사용자 Role이 OWNER가 아닌 경우 403 Forbidden 반환
      */
     @GetMapping("/owners/stores/{storeId}")
     public ResponseEntity<StoreDetailResponse> getOneForOwner(@PathVariable Long storeId) {
-        if (security.currentRole() != Role.OWNER) return ResponseEntity.status(403).build();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+
+        // 권한이 여러 개일 경우, 첫 번째 권한을 사용
+        String roleString = authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .orElse(null);
+
+        // UserRole로 변환하여 권한 확인
+        UserRole currentRole = UserRole.valueOf(Objects.requireNonNull(roleString).replace("ROLE_", "")); // "ROLE_" 부분 제거 후 변환
+
+        // OWNER 권한 확인
+        if (currentRole != UserRole.OWNER) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "오너용 가게 단건 조회는 OWNER만 가능합니다.");
+        }
+
         return ResponseEntity.ok(storeQueryService.getOneForOwner(storeId));
     }
+
 }

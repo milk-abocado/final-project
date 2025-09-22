@@ -1,14 +1,9 @@
 package com.example.finalproject.domain.auth.service;
 
-import com.example.finalproject.config.TokenProperties;
 import com.example.finalproject.config.SessionIndexService;
+import com.example.finalproject.config.TokenProperties;
 import com.example.finalproject.config.TokenProvider;
-import com.example.finalproject.domain.auth.dto.EmailRequest;
-import com.example.finalproject.domain.auth.dto.EmailVerifyRequest;
-import com.example.finalproject.domain.auth.dto.LoginRequest;
-import com.example.finalproject.domain.auth.dto.SignupRequest;
-import com.example.finalproject.domain.auth.dto.SocialProviderLoginRequest;
-import com.example.finalproject.domain.auth.dto.TokenRefreshRequest;
+import com.example.finalproject.domain.auth.dto.*;
 import com.example.finalproject.domain.auth.entity.SocialAccount;
 import com.example.finalproject.domain.auth.repository.SocialAccountRepository;
 import com.example.finalproject.domain.common.mail.SmtpMailSender;
@@ -86,12 +81,26 @@ public class AuthService {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("email used");
         }
+
+        UserRole role = req.getRole() != null ? UserRole.valueOf(req.getRole()) : UserRole.USER;
+
+        // Users 객체 생성 시, 이름과 핸드폰 번호도 저장
         Users u = Users.builder()
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(req.getPassword()))
                 .nickname(req.getNickname())
-                .role(UserRole.USER)
+                .phoneNumber(req.getPhone_number())  // 핸드폰 번호 설정
+                .name(req.getName())                 // 이름 설정
+                .role(role)
                 .build();
+
+//        // 수정 전 코드
+//        Users u = Users.builder()
+//                .email(req.getEmail())
+//                .password(passwordEncoder.encode(req.getPassword()))
+//                .nickname(req.getNickname())
+//                .role(UserRole.USER)  // 여기에 USER로 하드코딩되어 있음
+//                .build();
         return userRepository.save(u);
     }
 
