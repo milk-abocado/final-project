@@ -89,14 +89,24 @@ public class MenusService {
         // 옵션 + 선택지 저장
         if (request.getOptions() != null) {
             for (MenuOptionsRequest optReq : request.getOptions()) {
-                if (Boolean.TRUE.equals(optReq.getIsRequired()) && (optReq.getMinSelect() == null || optReq.getMinSelect() < 1)) {
-                    throw new IllegalArgumentException("필수 옵션("+optReq.getOptionsName()+")의 최소 선택 수는 1 이상이어야 합니다.");
-                }
+
                 MenuOptions option = new MenuOptions();
                 option.setMenu(menu);
                 option.setOptionsName(optReq.getOptionsName());
                 option.setIsRequired(optReq.getIsRequired());
-                option.setMinSelect(optReq.getMinSelect());
+                if (Boolean.FALSE.equals(optReq.getIsRequired())) {
+                    option.setMinSelect(0);
+                } else {
+                    if (optReq.getMinSelect() == null || optReq.getMinSelect() < 1) {
+                        throw new IllegalArgumentException("필수 옵션("+optReq.getOptionsName()+")의 최소 선택 수는 1 이상이어야 합니다.");
+                    }
+                    option.setMinSelect(optReq.getMinSelect());
+                }
+
+                if (optReq.getMaxSelect() != null && optReq.getMaxSelect() < option.getMinSelect()) {
+                    throw new IllegalArgumentException("옵션("+optReq.getOptionsName()+")의 최대 선택 수는 최소 선택 수 이상이어야 합니다.");
+                }
+
                 option.setMaxSelect(optReq.getMaxSelect());
                 optionsRepository.save(option);
 
