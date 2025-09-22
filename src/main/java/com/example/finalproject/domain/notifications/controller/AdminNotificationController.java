@@ -15,7 +15,7 @@ public class AdminNotificationController {
     private final NotificationRepository notificationRepository;
 
     // 특정 사용자 알림
-    @PostMapping("/user/{userId}")
+    @PostMapping("/users/{userId}")
     public String sendToUser(@PathVariable Long userId,
                              @RequestBody NotificationMessageRequest req) {
         try {
