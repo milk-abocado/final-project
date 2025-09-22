@@ -29,11 +29,11 @@ public class UsersService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."));
 
         // null 아닌 값만 반영 (부분 업데이트)
-        if (req.getNickname() != null)      user.setNickname(req.getNickname().trim());
-        if (req.getPhoneNumber() != null)   user.setPhoneNumber(req.getPhoneNumber());
-        if (req.getAddress() != null)       user.setAddress(req.getAddress());
-        if (req.getAddressDetail() != null) user.setAddressDetail(req.getAddressDetail());
-        if (req.getZipCode() != null)       user.setZipCode(req.getZipCode());
+        if (req.getNickname() != null)      user.changeNickname(req.getNickname().trim());
+        if (req.getPhoneNumber() != null)   user.changePhoneNumber(req.getPhoneNumber().trim());
+        if (req.getAddress() != null)       user.changeAddress(req.getAddress().trim());
+        if (req.getAddressDetail() != null) user.changeAddressDetail(req.getAddressDetail().trim());
+        if (req.getZipCode() != null)       user.changeZipCode(req.getZipCode().trim());
 
         return UserDetailResponse.from(user); // JPA dirty checking
     }

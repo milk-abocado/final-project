@@ -36,14 +36,12 @@ public class PasswordResetService {
     private String rateKey(String email)     { return "RL:pwreq:"     + email.toLowerCase(); }
     private String verifiedKey(String email) { return "PW:verified:"  + email.toLowerCase(); }
 
-    /** 6자리 숫자 코드 생성 */
     private String genCode() {
         SecureRandom r = new SecureRandom();
         int n = r.nextInt(1_000_000); // 0~999999
         return String.format("%06d", n);
     }
 
-    /** [분실용] 코드 전송 (익명) */
     public void sendCode(SendResetCodeRequest req) {
         String email = req.email().toLowerCase();
 
@@ -106,7 +104,7 @@ public class PasswordResetService {
 
         Users user = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("계정을 찾을 수 없습니다."));
-        user.setPassword(passwordEncoder.encode(req.newPassword()));
+        user.changePassword(passwordEncoder.encode(req.newPassword()));
         usersRepository.save(user);
 
         try {
@@ -132,7 +130,7 @@ public class PasswordResetService {
             throw new IllegalArgumentException("INVALID_OLD_PASSWORD");
         }
 
-        user.setPassword(passwordEncoder.encode(req.newPassword()));
+        user.changePassword(passwordEncoder.encode(req.newPassword()));
         usersRepository.save(user);
 
     }
@@ -162,7 +160,7 @@ public class PasswordResetService {
         }
 
         // 4) 변경
-        user.setPassword(passwordEncoder.encode(req.newPassword()));
+        user.changePassword(passwordEncoder.encode(req.newPassword()));
         usersRepository.save(user);
 
         // 5) 플래그 소진 (1회성)

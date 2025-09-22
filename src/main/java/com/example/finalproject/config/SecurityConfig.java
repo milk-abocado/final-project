@@ -40,8 +40,7 @@ public class SecurityConfig {
 
                         // 🔐 일반 변경(로그인 필요)
                         .requestMatchers(HttpMethod.POST,
-                                "/auth/password/change",
-                                "/auth/password/change-secure"
+                                "/auth/password/change"
                         ).authenticated()
 
                         .anyRequest().authenticated()

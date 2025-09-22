@@ -1,7 +1,7 @@
 package com.example.finalproject.domain.auth.controller;
 
-import com.example.finalproject.domain.common.api.ErrorCode;
 import com.example.finalproject.domain.common.api.AppException;
+import com.example.finalproject.domain.common.api.ErrorCode;
 import com.example.finalproject.domain.auth.dto.password.ChangePasswordRequest;
 import com.example.finalproject.domain.auth.dto.password.ConfirmResetPasswordRequest;
 import com.example.finalproject.domain.auth.dto.password.SendResetCodeRequest;
@@ -36,10 +36,7 @@ public class PasswordResetController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> verify(@RequestBody @Valid VerifyResetCodeRequest req) {
         boolean ok = passwordResetService.verifyCode(req);
-        if (!ok) {
-            // 만료/오류를 서비스에서 구분해 AppException으로 던지도록 바꾸면 더 정확한 코드 매핑 가능
-            throw new AppException(ErrorCode.INVALID_CODE);
-        }
+        if (!ok) throw new AppException(ErrorCode.INVALID_CODE);
         return ResponseEntity.ok(Map.of("message", "코드가 확인되었습니다."));
     }
 
@@ -62,6 +59,7 @@ public class PasswordResetController {
     }
 
     /* ================= 로컬 예외 핸들러 (이 컨트롤러에만 적용) ================ */
+
     @ExceptionHandler(AppException.class)
     public ResponseEntity<?> handleApp(AppException e) {
         var ec = e.error;

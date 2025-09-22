@@ -51,11 +51,6 @@ public class TokenProvider {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Public helpers
-    // ─────────────────────────────────────────────────────────────────────
-
-    /** Authorization 헤더에서 "Bearer " 접두어 제거 (대소문자 무시). 불일치 시 null */
     public static String stripBearer(String header) {
         if (header == null) return null;
         String h = header.trim();
@@ -65,22 +60,18 @@ public class TokenProvider {
         return null;
     }
 
-    /** 액세스 토큰 검증 (유효/만료/서명) */
     public boolean validateAccessToken(String token) {
         return validate(token, accessParser, "access");
     }
 
-    /** 리프레시 토큰 검증 (유효/만료/서명) */
     public boolean validateRefreshToken(String token) {
         return validate(token, refreshParser, "refresh");
     }
 
-    /** (추가) 리프레시 토큰 파싱 (Claims 반환) */
     public Claims parseRefresh(String token) {
         return refreshParser.parseClaimsJws(token).getBody();
     }
 
-    /** 액세스 토큰 → Spring Security Authentication */
     public Authentication getAuthenticationFromAccess(String token) {
         Claims c = accessParser.parseClaimsJws(token).getBody();
 
@@ -89,7 +80,6 @@ public class TokenProvider {
         String roles = optStr(c.get("roles"));        // "ROLE_USER,ROLE_ADMIN" 형태 또는 null
         String sid   = optStr(c.get("sid"));          // 선택 클레임
 
-        // 필수는 uid만으로 축소 (email 없이도 동작하도록)
         if (!StringUtils.hasText(uid)) {
             log.warn("[JWT] required claim 'uid' missing. claims={}", c);
             throw new BadCredentialsException("JWT missing required claims");
@@ -104,7 +94,6 @@ public class TokenProvider {
                         .collect(Collectors.toList())
                         : Collections.emptyList();
 
-        // username: email 있으면 email, 없으면 uid
         String username = StringUtils.hasText(email) ? email : uid;
 
         UserDetails principal = User.withUsername(username)
@@ -125,11 +114,6 @@ public class TokenProvider {
         return auth;
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Token creation
-    // ─────────────────────────────────────────────────────────────────────
-
-    /** 액세스/리프레시 동시 생성 (roles null 가능, email null 가능) */
     public Map<String, Object> createTokens(Long userId,
                                             String email,
                                             Collection<String> roles,
@@ -145,12 +129,10 @@ public class TokenProvider {
         return out;
     }
 
-    /** 액세스 토큰 단독 생성 (roleName 단일 문자열, email 생략 가능) */
     public String createAccess(Long userId, String roleName) {
         return createAccess(userId, null, roleName, null);
     }
 
-    /** 액세스 토큰 생성 (email/roles/sid 모두 선택) */
     public String createAccess(Long userId, String email, String roles, String sid) {
         long nowMs = System.currentTimeMillis();
         long expMs = nowMs + props.getAccess().getTtlSeconds() * 1000L;
@@ -168,7 +150,6 @@ public class TokenProvider {
         return b.signWith(accessKey, SignatureAlgorithm.HS256).compact();
     }
 
-    /** 리프레시 토큰 생성 (sid 선택) */
     public String createRefresh(Long userId, String sid) {
         long nowMs = System.currentTimeMillis();
         long expMs = nowMs + props.getRefresh().getTtlSeconds() * 1000L;
@@ -184,14 +165,9 @@ public class TokenProvider {
         return b.signWith(refreshKey, SignatureAlgorithm.HS256).compact();
     }
 
-    /** 리프레시 토큰 단독 (overload) */
     public String createRefresh(Long userId) {
         return createRefresh(userId, null);
     }
-
-    // ─────────────────────────────────────────────────────────────────────
-    // Private helpers
-    // ─────────────────────────────────────────────────────────────────────
 
     private boolean validate(String token, JwtParser parser, String typ) {
         try {
@@ -218,7 +194,6 @@ public class TokenProvider {
         return v == null ? null : v.toString();
     }
 
-    /** Base64 우선, 실패 시 UTF-8 바이트 사용. HS256 권장 최소 32바이트 미만이면 패딩. */
     private static Key hmacKey(String secret) {
         byte[] bytes;
         try {
