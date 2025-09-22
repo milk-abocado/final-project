@@ -7,10 +7,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 /**
  * 외부 API 호출용 WebClient 설정 클래스
  * -------------------------------------------------
- * - Spring WebFlux 의 WebClient 를 Bean 으로 등록하여
+ * - Spring WebFlux의 WebClient를 Bean 으로 등록하여
  *   애플리케이션 전역에서 주입받아 사용 가능하게 함
- * - 여기서는 Kakao Local API 호출 전용 WebClient 를 생성
- *   (baseUrl 을 "https://dapi.kakao.com" 으로 지정)
+ * - 여기서는 Kakao Local API 호출 전용 WebClient를 생성
+ *   (baseUrl을 "https://dapi.kakao.com" 으로 지정)
  */
 @Configuration
 public class WebClients {

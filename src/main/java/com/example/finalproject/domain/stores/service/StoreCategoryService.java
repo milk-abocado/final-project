@@ -1,7 +1,5 @@
 package com.example.finalproject.domain.stores.service;
 
-import com.example.finalproject.domain.stores.auth.Role;
-import com.example.finalproject.domain.stores.auth.SecurityUtil;
 import com.example.finalproject.domain.stores.category.StoreCategory;
 import com.example.finalproject.domain.stores.dto.request.StoreCategoriesRequest;
 import com.example.finalproject.domain.stores.dto.response.StoreCategoriesDeleteResponse;
@@ -12,31 +10,30 @@ import com.example.finalproject.domain.stores.exception.ApiException;
 import com.example.finalproject.domain.stores.exception.ErrorCode;
 import com.example.finalproject.domain.stores.repository.StoreCategoryLinkRepository;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
+import com.example.finalproject.domain.users.UserRole;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 
-/**
- * StoreCategoryService
- * -------------------------------------------------
- * - 가게(Store)에 연결된 카테고리(StoreCategory) 관리 서비스
- * - 등록(최초 1회), 전체 수정(치환), 단일 삭제, 조회 기능 제공
- * - OWNER 본인 가게에 대해서만 등록/수정/삭제 가능 (인가 포함)
- */
 @Service
 @RequiredArgsConstructor
 public class StoreCategoryService {
 
     private final StoresRepository storesRepository;
     private final StoreCategoryLinkRepository linkRepository;
-    private final SecurityUtil security;
 
     /**
      * 인가 & 소유권 검증
-     * - 현재 로그인 사용자가 OWNER인지 확인
+     * - 현재 로그인 사용자가 OWNER 인지 확인
      * - 대상 가게 존재 여부 확인
      * - 가게 소유자와 현재 사용자 일치 여부 확인
      *
@@ -44,12 +41,33 @@ public class StoreCategoryService {
      * @return Stores 엔티티 (검증 통과 시)
      */
     private Stores ensureOwnerOfStore(Long storeId) {
-        if (security.currentRole() != Role.OWNER)
+        // 현재 사용자 권한 확인 (OWNER만 가능)
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+
+        // 권한이 여러 개일 경우, 첫 번째 권한을 사용
+        String roleString = authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .orElse(null);
+
+        // UserRole로 변환하여 권한 확인
+        UserRole currentRole = UserRole.valueOf(Objects.requireNonNull(roleString).replace("ROLE_", "")); // "ROLE_" 부분 제거 후 변환
+
+        if (currentRole != UserRole.OWNER) {
             throw new ApiException(ErrorCode.FORBIDDEN, "가게 카테고리 수정은 OWNER만 가능합니다.");
+        }
+
+        // 가게 조회
         Stores s = storesRepository.findById(storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
-        if (!s.getOwner().getId().equals(security.currentUserId()))
+
+        // 본인 가게 여부 확인
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();  // 이메일을 포함한 사용자 정보
+        String username = userDetails.getUsername();  // username은 이메일
+        if (!s.getOwner().getEmail().equals(username)) {  // 이메일로 비교
             throw new ApiException(ErrorCode.FORBIDDEN, "본인 가게만 수정할 수 있습니다.");
+        }
         return s;
     }
 
@@ -64,10 +82,16 @@ public class StoreCategoryService {
     private static EnumSet<StoreCategory> validateSet(List<StoreCategory> categories) {
         var set = EnumSet.noneOf(StoreCategory.class);
         set.addAll(categories);
-        if (set.isEmpty() || set.size() > 2)
+
+        // 카테고리 개수가 1개 이상 2개 이하인지 체크
+        if (set.isEmpty() || set.size() > 2) {
+            // 카테고리가 0개 또는 2개 이상일 경우 예외 발생
             throw new ApiException(ErrorCode.BAD_REQUEST, "카테고리는 1~2개까지 설정할 수 있습니다.");
+        }
+
         return set;
     }
+
 
     /**
      * 등록(처음 1회)
@@ -76,12 +100,14 @@ public class StoreCategoryService {
      */
     @Transactional
     public StoreCategoriesResponse create(Long storeId, StoreCategoriesRequest req) {
+        // 가게의 소유권 검증
         Stores store = ensureOwnerOfStore(storeId);
 
         long existing = linkRepository.countByStore_Id(storeId);
         if (existing > 0)
             throw new ApiException(ErrorCode.CONFLICT, "이미 등록된 카테고리가 있습니다. 수정 API를 사용하세요.");
 
+        // 카테고리 유효성 검증
         var set = validateSet(req.getCategories());
         // 요청한 카테고리들을 링크 엔티티로 저장
         set.forEach(cat -> linkRepository.save(
@@ -102,6 +128,7 @@ public class StoreCategoryService {
      */
     @Transactional
     public StoreCategoriesResponse update(Long storeId, StoreCategoriesRequest req) {
+        // 가게의 소유권 검증
         Stores store = ensureOwnerOfStore(storeId);
         var set = validateSet(req.getCategories());
 
@@ -110,6 +137,7 @@ public class StoreCategoryService {
         set.forEach(cat -> linkRepository.save(
                 StoreCategoryLink.builder().store(store).category(cat).build()
         ));
+        // 현재 상태 조회 후 반환
         var now = linkRepository.findByStore_Id(storeId).stream()
                 .map(StoreCategoryLink::getCategory)
                 .map(StoreCategory::getLabel)
@@ -129,12 +157,13 @@ public class StoreCategoryService {
         ensureOwnerOfStore(storeId);
         linkRepository.deleteByStore_IdAndCategory(storeId, category);
 
+        // 카테고리명을 포함한 메시지
         var now = linkRepository.findByStore_Id(storeId).stream()
                 .map(StoreCategoryLink::getCategory)
                 .map(StoreCategory::getLabel)
                 .toList();
 
-        // 카테고리명을 포함한 메시지 (원하면 일반 메시지로 바꿔도 됨)
+        // 카테고리명을 포함한 메시지
         String msg = "카테고리 '" + category.getLabel() + "'을(를) 삭제했습니다"; // ← 여기!
         return new StoreCategoriesDeleteResponse(storeId, now, msg);
     }
@@ -158,14 +187,19 @@ public class StoreCategoryService {
     }
 
     /**
-     * 조회(누구나)
-     * - 가게 존재 여부만 확인하고 카테고리 목록 반환
+     * 조회(오너만)
+     * - 오너만 해당 가게의 카테고리 목록을 조회할 수 있음
      */
     @Transactional
     public StoreCategoriesResponse get(Long storeId) {
+        // 가게 존재 여부 확인
         storesRepository.findById(storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
 
+        // 오너만 조회할 수 있도록 권한 검증
+        ensureOwnerOfStore(storeId);  // 오너 검증
+
+        // 가게의 카테고리 목록 조회
         var now = linkRepository.findByStore_Id(storeId).stream()
                 .map(StoreCategoryLink::getCategory)
                 .map(StoreCategory::getLabel)
