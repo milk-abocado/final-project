@@ -60,11 +60,14 @@ public class Users {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+    
+    @Column(name = "allow_notifications", nullable = false)
+    private Boolean allowNotifications = true;
 
     @Builder
     public Users(String email, String password, String name, String nickname,
                  String phoneNumber, UserRole role, boolean socialLogin, boolean deleted,
-                 String address, String addressDetail, String zipCode) {
+                 String address, String addressDetail, String zipCode, boolean allowNotifications) {
         this.email = email;
         this.password = password;
         this.name = name;
@@ -76,6 +79,7 @@ public class Users {
         this.address = address;
         this.addressDetail = addressDetail;
         this.zipCode = zipCode;
+        this.allowNotifications = allowNotifications;
     }
 
     @PrePersist
