@@ -20,9 +20,8 @@ public record StoreRecommendItemResponse(
         Double avgRating,   // 평균 별점 (reviews 기반), 리뷰가 없으면 0.0 또는 null
         Long reviewCount,   // 리뷰 수, 특정 기간(reviews/trending) 또는 전체(rating/distance) 기준
         Double distanceKm,  // 거리 (킬로미터), by=distance 요청 시만 값이 채워짐
-        Double score,       // 추천 점수
-                            // by=trending: 주문/리뷰/평점을 가중 합산한 score
-                            // by=rating: 베이지안 평균 점수
+        Double trendScore,  // by=trending: 주문/리뷰/평점을 가중 합산한 score
+        Double bayesScore,  // by=rating: 베이지안 평균 점수
         Boolean openNow,    // 현재 영업 중 여부, opensAt/closesAt 기준으로 계산됨
         LocalTime opensAt,  // 오픈 시각 (HH:mm:ss)
         LocalTime closesAt  // 마감 시각 (HH:mm:ss)

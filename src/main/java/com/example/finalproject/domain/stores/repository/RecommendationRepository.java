@@ -38,13 +38,17 @@ public interface RecommendationRepository extends JpaRepository<Stores, Long> {
      */
     @Query(value = """
     SELECT s.id, s.name, s.address,
-           MIN(sc.category) AS category,
-           AVG(r.rating) AS avg_rating,
-           COUNT(r.id) AS review_cnt,
-           ((AVG(r.rating) * COUNT(r.id) + :C * :m) / (COUNT(r.id) + :C)) AS bayes_score,
+           sc.category,
+           COALESCE(SUM(r.rating) / NULLIF(COUNT(DISTINCT r.id),0), 0) AS avg_rating,
+           COUNT(DISTINCT r.id) AS review_cnt,
+           ((COALESCE(SUM(r.rating) / NULLIF(COUNT(DISTINCT r.id),0), 0) * COUNT(DISTINCT r.id) + :C * :m) / (COUNT(DISTINCT r.id) + :C) ) AS bayes_score,
            s.opens_at, s.closes_at
     FROM stores s
-    LEFT JOIN store_categories sc ON sc.store_id = s.id
+    LEFT JOIN (
+        SELECT store_id, MIN(category) AS category
+        FROM store_categories
+        GROUP BY store_id
+    ) sc ON sc.store_id = s.id
     LEFT JOIN reviews r ON r.store_id = s.id AND r.is_deleted = FALSE
     WHERE s.active = TRUE
       AND s.retired_at IS NULL
@@ -102,12 +106,16 @@ public interface RecommendationRepository extends JpaRepository<Stores, Long> {
      */
     @Query(value = """
     SELECT s.id, s.name, s.address,
-           MIN(sc.category) AS category,
-           COUNT(r.id) AS recent_reviews,
-           COALESCE(AVG(r.rating), 0) AS avg_rating,
+           sc.category,
+           COUNT(DISTINCT r.id) AS recent_reviews,
+           COALESCE(SUM(r.rating) / NULLIF(COUNT(DISTINCT r.id),0), 0) AS avg_rating,
            s.opens_at, s.closes_at
     FROM stores s
-    LEFT JOIN store_categories sc ON sc.store_id = s.id
+    LEFT JOIN (
+        SELECT store_id, MIN(category) AS category
+        FROM store_categories
+        GROUP BY store_id
+    ) sc ON sc.store_id = s.id
     LEFT JOIN reviews r
       ON r.store_id = s.id
      AND r.is_deleted = FALSE
