@@ -124,7 +124,8 @@ public class StoreRecommendationService {
 
         return StoreRecommendItemResponse.builder()
                 .id(id).name(name).address(address).category(category)
-                .avgRating(avgRating).reviewCount(reviewCnt).score(bayes)
+                .avgRating(avgRating).reviewCount(reviewCnt)
+                .bayesScore(bayes)
                 .openNow(isOpenNow(opensAt, closesAt))
                 .opensAt(opensAt).closesAt(closesAt)
                 .build();
@@ -184,13 +185,14 @@ public class StoreRecommendationService {
         // Long orders30d = toLong(row[4]); // 필요 시 사용
         Long reviews30d = toLong(row[5]);
         Double avgRating = toDouble(row[6]);
-        Double score = toDouble(row[7]);
+        Double trendScore = toDouble(row[7]);
         LocalTime opensAt = toLocalTime(row[8]);
         LocalTime closesAt = toLocalTime(row[9]);
 
         return StoreRecommendItemResponse.builder()
                 .id(id).name(name).address(address).category(category)
-                .reviewCount(reviews30d).avgRating(avgRating).score(score)
+                .reviewCount(reviews30d).avgRating(avgRating)
+                .trendScore(trendScore)
                 .openNow(isOpenNow(opensAt, closesAt))
                 .opensAt(opensAt).closesAt(closesAt)
                 .build();
