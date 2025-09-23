@@ -1,8 +1,8 @@
 package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-import co.elastic.clients.elasticsearch.core.bulk.BulkRequest;
 import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
 import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
 import lombok.RequiredArgsConstructor;
@@ -71,7 +71,10 @@ public class PopularSearchService {
         }
 
         if (!bulkOps.isEmpty()) {
-            esClient.bulk(BulkRequest.of(b -> b.operations(bulkOps)));
+            BulkResponse response = esClient.bulk(b -> b.operations(bulkOps));
+            if (response.errors()) {
+                System.err.println("Bulk indexing had errors: " + response);
+            }
             popularSearchRepository.deleteAll();
             popularSearchRepository.saveAll(allResults);
         }
