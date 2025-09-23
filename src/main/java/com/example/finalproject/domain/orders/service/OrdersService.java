@@ -38,6 +38,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -182,6 +183,16 @@ public class OrdersService {
         Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
 
+        // 상태 확인
+        Orders.Status status = Arrays.stream(Orders.Status.values())
+                .filter(s -> s.name().equalsIgnoreCase(statusStr))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 주문 상태입니다."));
+
+        if (!order.getStatus().canTransitionTo(status)) {
+            throw new IllegalArgumentException("주문 상태 '" + order.getStatus() + "' → '" + status + "' 전환은 허용되지 않습니다.");
+        }
+
         // OWNER 권한 여부 확인
         boolean isOwner = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -200,19 +211,21 @@ public class OrdersService {
             if (!storeOwnerId.equals(userId)) {
                 throw new AccessDeniedException("이 가게의 OWNER만 접근할 수 있습니다.");
             }
+            if (status.equals(Orders.Status.CANCELED)) {
+                throw new AccessDeniedException("주문 상태 'CANCELED'는 OWNER가 직접 변경할 수 없습니다. 고객센터에 문의하세요.");
+            }
         }
         // USER: 주문자 본인인지 확인
         else if (isUser) {
             if (!order.getUser().getId().equals(userId)) {
                 throw new AccessDeniedException("본인 주문만 접근할 수 있습니다.");
             }
-        }
-
-        Orders.Status status;
-        try {
-            status = Orders.Status.valueOf(statusStr.toUpperCase()); // 대소문자 둘다 OK
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("유효하지 않은 주문 상태입니다: " + statusStr);
+            if (status.equals(Orders.Status.CANCELED)) {
+                throw new AccessDeniedException("주문 상태 'CANCELED'는 USER가 직접 변경할 수 없습니다. 고객센터에 문의하세요.");
+            }
+            else if (!status.equals(Orders.Status.REJECTED)) {
+                throw new AccessDeniedException("주문 상태 '"+status+"'는 USER가 변경할 수 없습니다.");
+            }
         }
 
         order.setStatus(status);
