@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -44,7 +45,29 @@ public class Orders {
     private LocalDateTime updatedAt;
 
     public enum Status {
-        WAITING, ACCEPTED, COOKING, DELIVERING, COMPLETED, REJECTED, CANCELED
+        WAITING {
+            public Set<Status> next() { return Set.of(ACCEPTED, REJECTED, CANCELED); }
+        },
+        ACCEPTED {
+            public Set<Status> next() { return Set.of(COOKING, CANCELED); }
+        },
+        COOKING {
+            public Set<Status> next() { return Set.of(DELIVERING, CANCELED); }
+        },
+        DELIVERING {
+            public Set<Status> next() { return Set.of(COMPLETED, CANCELED); }
+        },
+        COMPLETED {
+            public Set<Status> next() { return Set.of(CANCELED); }
+        }, REJECTED, CANCELED;
+
+        public Set<Status> next() {
+            return Set.of(); // 기본값
+        }
+
+        public boolean canTransitionTo(Status target) {
+            return next().contains(target);
+        }
     }
 }
 
