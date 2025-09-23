@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface PopularSearchRepository extends JpaRepository<PopularSearch, Long> {
-    List<PopularSearch> findTop10ByCount();
+    List<PopularSearch> findTop10ByOrderByRankAsc();
 }

@@ -18,6 +18,6 @@ public class PopularSearchController {
 
     @GetMapping
     public List<PopularSearch> getPopularSearches() {
-        return popularSearchRepository.findTop10ByCount();
+        return popularSearchRepository.findTop10ByOrderByRankAsc();
     }
 }

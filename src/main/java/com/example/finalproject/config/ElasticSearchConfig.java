@@ -3,6 +3,7 @@ package com.example.finalproject.config;
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
 import co.elastic.clients.elasticsearch.indices.GetIndexRequest;
 import co.elastic.clients.transport.rest5_client.low_level.RequestOptions;
+import io.jsonwebtoken.io.IOException;
 import jakarta.annotation.PostConstruct;
 import org.apache.hc.core5.http.HttpHost;
 import org.springframework.context.annotation.Bean;
@@ -36,7 +37,7 @@ public class ElasticSearchConfig {
     @Bean
     public RestHighLevelClient elasticsearchClient() {
         return new RestHighLevelClient(
-                RestClient.builder(new HttpHost("local@0host", 9200, "http"))
+                RestClient.builder(new HttpHost("local@host", 9200, "http"))
         );
     }
 }

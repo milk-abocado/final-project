@@ -6,13 +6,16 @@ import com.example.finalproject.domain.searches.entity.Searches;
 import com.example.finalproject.domain.searches.exception.SearchesException;
 import com.example.finalproject.domain.searches.repository.SearchesRepository;
 import com.example.finalproject.domain.users.repository.UsersRepository;
+import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -156,5 +159,20 @@ public class SearchesService {
         }
 
         searchesRepository.delete(searches);
+    }
+
+    //인기 검색어: 사용자 검색 처리(Redis 카운트 증가)
+    @RequiredArgsConstructor
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    public void saveSearchKeyword(String keyword, String region, Long userId) {
+        //Redis Key: popular:keyword:{지역}
+        String redisKey = "popular:keyword:" + region;
+
+        //count 증가
+        redisTemplate.opsForZSet().incrementScore(redisKey, keyword, 1);
+
+        //TTL 2시간 정도 설정(캐시 만료 대비)
+        redisTemplate.expire(redisKey, 30, TimeUnit.HOURS);
     }
     }
