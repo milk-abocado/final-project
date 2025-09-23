@@ -9,6 +9,7 @@ import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -157,16 +158,11 @@ public class SearchesService {
     }
 
     //인기 검색어: 사용자 검색 처리(Redis 카운트 증가)
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
 
-    public void saveSearchKeyword(String keyword, String region, Long userId) {
-        //Redis Key: popular:keyword:{지역}
-        String redisKey = "popular:keyword:" + region;
-
-        //count 증가
-        redisTemplate.opsForZSet().incrementScore(redisKey, keyword, 1);
-
-        //TTL 2시간 정도 설정(캐시 만료 대비)
-        redisTemplate.expire(redisKey, 2, TimeUnit.HOURS);
+    // 검색 키워드와 지역별 count 증가
+    public void recordSearch(String keyword, String region) {
+        String redisKey = "search_count:" + region + ":" + keyword;
+        redisTemplate.opsForValue().increment(redisKey);
     }
     }

@@ -1,76 +1,79 @@
 package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.IndexRequest;
-import co.elastic.clients.transport.rest5_client.low_level.RequestOptions;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.core.bulk.BulkRequest;
 import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
-import com.example.finalproject.domain.elasticsearchpopular.entity.Region;
 import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
-import com.example.finalproject.domain.elasticsearchpopular.repository.RegionRepository;
-import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
-@Service
 @RequiredArgsConstructor
+@Service
 public class PopularSearchService {
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final ElasticsearchClient elasticClient;
+
+    private final StringRedisTemplate redisTemplate;
+    private final ElasticsearchClient esClient;
     private final PopularSearchRepository popularSearchRepository;
-    private final RegionRepository regionRepository;
 
-    public void aggregationPopularSearches() throws IOException {
-        popularSearchRepository.deleteAll(); //기존 데이터 초기화
+    // Redis → Top10 → Elasticsearch & DB
+    public void aggregateAndStore() throws Exception {
+        Set<String> keys = redisTemplate.keys("search_count:*");
+        if (keys == null || keys.isEmpty()) return;
 
-        //DB에서 지역 목록 가져오기
-        List<Region> regions = regionRepository.findAll();
+        Map<String, Map<String, Long>> regionKeywordCount = new HashMap<>();
 
-        for (Region regionEntity : regions) {
-            String region = regionEntity.getRegionName();
-            String redisKey = "popular:keyword:" + region; //전국 단위 예시
+        for (String key : keys) {
+            String[] parts = key.split(":");
+            if (parts.length < 3) continue;
+            String region = parts[1];
+            String keyword = parts[2];
+            long count = Long.parseLong(redisTemplate.opsForValue().get(key));
 
-            //Redis에서 Top10 가져오기
-            Set<ZSetOperations.TypedTuple<Object>> topKeywords =
-                    redisTemplate.opsForZSet().reverseRangeWithScores(redisKey, 0, 9);
+            regionKeywordCount.computeIfAbsent(region, r -> new HashMap<>())
+                    .merge(keyword, count, Long::sum);
+        }
 
-            if (topKeywords == null || topKeywords.isEmpty()) continue;
+        List<PopularSearch> allResults = new ArrayList<>();
+        List<BulkOperation> bulkOps = new ArrayList<>();
 
-            //ElasticSearch Bulk Insert
-            BulkRequest bulkRequest = new BulkRequest();
-            List<PopularSearch> regionPopularList = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Long>> entry : regionKeywordCount.entrySet()) {
+            String region = entry.getKey();
+
+            List<Map.Entry<String, Long>> top10 = entry.getValue().entrySet()
+                    .stream()
+                    .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                    .limit(10)
+                    .collect(Collectors.toList());
+
             int rank = 1;
-
-            for (ZSetOperations.TypedTuple<Object> tuple : topKeywords) {
-                String keyword = (String) tuple.getValue();
-                double count = tuple.getScore() != null ? tuple.getScore() : 0;
-
-                //ES 저장
-                IndexRequest indexRequest = new IndexRequest("searches_index")
-                        .source(Map.of(
-                                "keyword", keyword,
-                                "region", region,
-                                "count", count,
-                                "created_at", Instant.now().toString()
-                        ));
-                bulkRequest.add(indexRequest);
-
-                // DB 저장용
+            for (Map.Entry<String, Long> e : top10) {
                 PopularSearch ps = new PopularSearch();
-                ps.setKeyword(keyword);
                 ps.setRegion(region);
-                ps.setCount((int) count);
+                ps.setKeyword(e.getKey());
+                ps.setCount(e.getValue().intValue());
                 ps.setRank(rank++);
-                regionPopularList.add(ps);
+
+                allResults.add(ps);
+
+                bulkOps.add(BulkOperation.of(b -> b
+                        .index(idx -> idx
+                                .index("searches_index")
+                                .id(region + "_" + ps.getKeyword())
+                                .document(ps)
+                        )
+                ));
             }
-            elasticClient.bulk(bulkRequest, RequestOptions.DEFAULT);
-            popularSearchRepository.saveAll(regionpopularList);
+        }
+
+        if (!bulkOps.isEmpty()) {
+            esClient.bulk(BulkRequest.of(b -> b.operations(bulkOps)));
+            popularSearchRepository.deleteAll();
+            popularSearchRepository.saveAll(allResults);
         }
     }
 }
-
