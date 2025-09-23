@@ -8,7 +8,9 @@ import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.transport.rest5_client.low_level.RequestOptions;
 import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
+import com.example.finalproject.domain.elasticsearchpopular.entity.Region;
 import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
+import com.example.finalproject.domain.elasticsearchpopular.repository.RegionRepository;
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,17 +24,18 @@ import java.util.*;
 @RequiredArgsConstructor
 public class PopularSearchService {
     private final RedisTemplate<String, Object> redisTemplate;
-    private final RestHighLevelClient client;
-    private final PopularSearchRepository repository;
-
-    //미리 관리할 지역 리스트
-    private static final List<String> REGIONS = List.of("");
+    private final RestHighLevelClient elasticClient;
     private final PopularSearchRepository popularSearchRepository;
+    private final RegionRepository regionRepository;
 
     public void aggregationPopularSearches() throws IOException {
         popularSearchRepository.deleteAll(); //기존 데이터 초기화
 
-        for (String region : REGIONS) {
+        //DB에서 지역 목록 가져오기
+        List<Region> regions = regionRepository.findAll();
+
+        for (Region regionEntity : regions) {
+            String region = regionEntity.getRegionName();
             String redisKey = "popular:keyword:" + region; //전국 단위 예시
 
             //Redis에서 Top10 가져오기
