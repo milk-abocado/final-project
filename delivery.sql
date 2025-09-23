@@ -3,10 +3,6 @@ CREATE DATABASE IF NOT EXISTS delivery;
 -- 0) 안전 옵션 (테스트용)
 SET FOREIGN_KEY_CHECKS = 0;
 
-ALTER TABLE stores
-    AUTO_INCREMENT = 0;
-# ALTER TABLE store_notices AUTO_INCREMENT = 0;
-
 -- 1) 스키마 생성 및 선택
 CREATE SCHEMA IF NOT EXISTS delivery;
 
@@ -302,13 +298,9 @@ CREATE TABLE social_accounts (
 
 CREATE INDEX idx_social_user ON social_accounts (user_id);
 
-ALTER TABLE users ADD COLUMN address VARCHAR(100);
-
 ALTER TABLE reviews
     ADD COLUMN deleted_at DATETIME NULL,
     ADD COLUMN deleted_by VARCHAR(16) NULL,
-    ADD COLUMN updated_at DATETIME NULL;
-ALTER TABLE reviews
     ADD COLUMN updated_at DATETIME NULL;
 
 ALTER TABLE user_coupons
