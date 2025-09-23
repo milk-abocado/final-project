@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Table(name = "popular_searches")
 public class PopularSearch {
     @jakarta.persistence.Id
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
