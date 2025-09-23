@@ -2,6 +2,8 @@ package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch._types.aggregations.AggregationBuilders;
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.IndexRequest;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.transport.rest5_client.low_level.RequestOptions;
@@ -9,49 +11,57 @@ import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch
 import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Instant;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class PopularSearchService {
+    private final RedisTemplate<String, Object> redisTemplate;
     private final RestHighLevelClient client;
     private final PopularSearchRepository repository;
+    private final com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchRepository popularSearchRepository;
 
     public void aggregationPopularSearches() throws IOException {
-        SearchRequest searchRequest = new SearchRequest("searches_index");
+        String redisKey = "popular:keyword:all"; //전국 단위 예시
 
-        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-        sourceBuilder.size(0);
-        sourceBuilder.query(QueryBuilders.rangeQuery("created_at")
-                .gte("now-1h")
-                .lte("now"));
+        //Redis에서 Top10 가져오기
+        Set<ZSetOperations.TypedTuple<Object>> topKeywords =
+                redisTemplate.opsForZSet().reverseRangeWithScores(redisKey, 0, 9);
 
-        //aggregation
-        TermsAggregationBuilder aggregation = AggregationBuilders
-                .terms("popular_keywords")
-                .field("keyword")
-                .size(10);
+        if (topKeywords == null) return;
 
-        sourceBuilder.aggregation(aggregation);
-        searchRequest.source(sourceBuilder);
+        //ElasticSearch Bulk Insert
+        BulkRequest bulkRequest = new BulkRequest();
+        for (ZSetOperations.TypedTuple<Object> tuple : topKeywords) {
+            String keyword = (String) tuple.getValue();
+            double count = tuple.getScore() != null ? tuple.getScore() : 0;
 
-        SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
-        Terms terms = response.getAggregations().get("popular_keywords");
-
-        List<PopularSearch> popularSearches = new ArrayList<>();
-        int rank = 1;
-        for (Terms.Bucket bucket : terms.getBuckets()) {
-            PopularSearch popularSearch = new PopularSearch();
-            popularSearch.setKeyword(bucket.getKeyAsString());
-            popularSearch.setCount((int) bucket.getDocCount());
-            popularSearch.setRank(rank++);
-            popularSearch.add(popularSearch);
+            IndexRequest indexRequest = new IndexRequest("searches_index")
+                    .source(Map.of(
+                            "keyword", keyword,
+                            "count", count,
+                            "created_at", Instant.now().toString()
+                    ));
+            bulkRequest.add(indexRequest);
         }
+        elasticClient.bulk(bulkRequest, RequestOptions.DEFAULT);
 
-        repository.deleteAll(); //기존 캐싱 삭제
-        repository.saveAll(popularSearches);
+        //DB 업데이트 (캐시 테이블)
+        popularSearchRepository.deleteAll();
+        int rank = 1;
+        List<PopularSearch> popularList = new ArrayList<>();
+        for (ZSetOperations.TypedTuple<Object> tuple : topKeywords) {
+        PopularSearch popularSearch = new PopularSearch();
+        popularSearch.setKeyword((String) tuple.getValue());
+        popularSearch.setCount(tuple.getScore() != null ? tuple.getScore().intValue() : 0);
+        popularList.setRank(rank++);
+        popularList.add(popularSearch);
+        }
+        popularSearchRepository.saveAll(popularList);
     }
-}
+    }
