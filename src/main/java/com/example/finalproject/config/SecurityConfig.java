@@ -4,16 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @RequiredArgsConstructor
@@ -21,61 +16,69 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    // 완전 공개 (모든 HTTP 메서드 허용)
+    private static final String[] PUBLIC_ANY = {
+            "/auth/**",          // 로그인/회원가입/비번재설정 등
+            "/oauth/**"
+    };
+
+    // 읽기(GET)만 공개할 리소스
+    private static final String[] PUBLIC_GET = {
+            "/searches/**",
+            "/stores/**",
+            "/menus/**",
+            "/reviews/**",
+            "/points/**",
+            "/coupons/**",
+            "/image/**",
+            "/users/**",
+            "/slack/**",
+            "/carts/**",
+            "/orders/**",
+            "/files/**",
+            "/images/*/*"
+    };
+
+    private static final String[] PUBLIC_POST = {
+            "/searches/**",          // 바디로 검색하고 싶을 때
+             "/image/**",          // 예: 이미지 업로드를 공개하고 싶다면(보안 주의)
+             "/slack/**",           // 필요 시 추가
+             "/files/**",
+             "/s3/upload",
+            "/images/*/*/presign",
+            "/images/*/*/confirm"
+    };
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(c -> c.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-
-                        .requestMatchers(HttpMethod.POST,
-                                "/auth/signup",
-                                "/auth/login",
-                                "/auth/password/reset/code",
-                                "/auth/password/reset/verify",
-                                "/auth/password/reset/confirm"   // 분실용 confirm (익명)
-                        ).permitAll()
-                        .requestMatchers("/oauth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/public/**").permitAll()
-
-                        // 🔐 일반 변경(로그인 필요)
-                        .requestMatchers(HttpMethod.POST,
-                                "/auth/password/change"
-                        ).authenticated()
-
-                        .anyRequest().authenticated()
+                        .requestMatchers(PUBLIC_ANY).permitAll()                  // 모든 메서드 공개
+                        .requestMatchers(HttpMethod.GET,  PUBLIC_GET).permitAll() // GET만 공개
+                        .requestMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()//  POST 공개
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()   // CORS preflight
+                        .anyRequest().authenticated()                             // 나머지 인증 필요
                 )
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(authenticationEntryPoint())
-                        .accessDeniedHandler(accessDeniedHandler())
+                        .authenticationEntryPoint((req, res, e) -> {
+                            res.setHeader("WWW-Authenticate", "Bearer");
+                            res.setStatus(401);
+                            res.setContentType("application/json;charset=UTF-8");
+                            res.getWriter().write("{\"error\":\"unauthorized\",\"message\":\"Authentication required\"}");
+                        })
+                        .accessDeniedHandler((req, res, e) -> {
+                            res.setStatus(403);
+                            res.setContentType("application/json;charset=UTF-8");
+                            res.getWriter().write("{\"error\":\"forbidden\",\"message\":\"Access denied\"}");
+                        })
                 );
 
+        // JWT 필터 추가
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
-    }
-
-    @Bean
-    public AuthenticationEntryPoint authenticationEntryPoint() {
-        return (request, response, ex) -> {
-            response.setHeader("WWW-Authenticate", "Bearer");
-            if (!response.isCommitted()) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
-                response.setContentType("application/json");
-                response.setCharacterEncoding("UTF-8");
-                response.getWriter().write("{\"error\":\"unauthorized\",\"message\":\"Authentication required\"}");
-            }
-        };
-    }
-
-    @Bean
-    public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, ex) -> {
-            if (!response.isCommitted()) {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 403
-                response.setContentType("application/json");
-                response.setCharacterEncoding("UTF-8");
-                response.getWriter().write("{\"error\":\"forbidden\",\"message\":\"Access denied\"}");
-            }
-        };
     }
 }

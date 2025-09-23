@@ -4,16 +4,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -49,27 +46,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain chain)
-            throws ServletException, IOException {
+                                    FilterChain chain) throws ServletException, IOException {
+        String auth = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-        String uri = request.getRequestURI();
-        String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        String token = TokenProvider.stripBearer(authHeader);
+        if (auth == null || !auth.startsWith("Bearer ")) {
+            chain.doFilter(request, response);
+            return;
+        }
 
-        try {
-            if (StringUtils.hasText(token) && tokenProvider.validateAccessToken(token)) {
-                Authentication authentication = tokenProvider.getAuthenticationFromAccess(token);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                if (log.isDebugEnabled()) {
-                    log.debug("JWT authenticated: principal='{}' uri='{}'",
-                            authentication.getPrincipal(), uri);
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to build Authentication from JWT: {}", e.getMessage(), e);
-            SecurityContextHolder.clearContext();
-
+        String token = auth.substring(7);
+        if (tokenProvider.validateAccessToken(token)) {
+            Authentication authentication = tokenProvider.getAuthenticationFromAccess(token);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
         chain.doFilter(request, response);

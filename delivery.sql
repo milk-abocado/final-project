@@ -7,7 +7,23 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE SCHEMA IF NOT EXISTS delivery;
 
 USE delivery;
+-- images 테이블 (MySQL 8.x)
+CREATE TABLE IF NOT EXISTS `images` (
+                                        `id`            BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                        `object_key`    VARCHAR(512) NOT NULL,     -- S3 object key
+                                        `original_name` VARCHAR(255) NULL,
+                                        `content_type`  VARCHAR(100) NULL,         -- e.g. image/png
+                                        `size`          BIGINT UNSIGNED NULL,      -- bytes
+                                        `ref_type`      VARCHAR(30) NOT NULL,      -- STORE / MENU / REVIEW
+                                        `ref_id`        BIGINT NOT NULL,           -- 대상 엔티티 PK
+                                        `purpose`       VARCHAR(30) NULL,          -- THUMB / GALLERY 등
+                                        `owner_user_id` BIGINT NULL,               -- 업로더(옵션)
+                                        `created_at`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+                                        INDEX `idx_images_ref`       (`ref_type`, `ref_id`),
+                                        INDEX `idx_images_owner`     (`owner_user_id`),
+                                        INDEX `idx_images_created_at`(`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 -- 2) 사용자(Users)
 CREATE TABLE users (
 
