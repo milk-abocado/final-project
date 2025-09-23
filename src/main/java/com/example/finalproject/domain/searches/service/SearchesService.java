@@ -56,7 +56,7 @@ public class SearchesService {
         if (searches != null) {
             //동일 조합 있으면 count +1
             searches.setCount(searches.getCount() + 1);
-        }  else {
+        } else {
             //없으면 새로 생성
             searches = Searches.builder()
                     .keyword(request.getKeyword())
@@ -145,6 +145,7 @@ public class SearchesService {
                 .userId(searches.getUserId())
                 .build();
     }
+
     @Transactional
     public void deleteSearches(Long userId, Long id) {
         if (userId == null) {
@@ -161,8 +162,8 @@ public class SearchesService {
         searchesRepository.delete(searches);
     }
 
-    //인기 검색어: 사용자 검색 처리(Redis 카운트 증가)
     @RequiredArgsConstructor
+    //인기 검색어: 사용자 검색 처리(Redis 카운트 증가)
     private final RedisTemplate<String, Object> redisTemplate;
 
     public void saveSearchKeyword(String keyword, String region, Long userId) {
@@ -173,6 +174,6 @@ public class SearchesService {
         redisTemplate.opsForZSet().incrementScore(redisKey, keyword, 1);
 
         //TTL 2시간 정도 설정(캐시 만료 대비)
-        redisTemplate.expire(redisKey, 30, TimeUnit.HOURS);
+        redisTemplate.expire(redisKey, 2, TimeUnit.HOURS);
     }
     }

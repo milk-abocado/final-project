@@ -24,44 +24,53 @@ public class PopularSearchService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final RestHighLevelClient client;
     private final PopularSearchRepository repository;
-    private final com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchRepository popularSearchRepository;
+
+    //미리 관리할 지역 리스트
+    private static final List<String> REGIONS = List.of("");
+    private final PopularSearchRepository popularSearchRepository;
 
     public void aggregationPopularSearches() throws IOException {
-        String redisKey = "popular:keyword:all"; //전국 단위 예시
+        popularSearchRepository.deleteAll(); //기존 데이터 초기화
 
-        //Redis에서 Top10 가져오기
-        Set<ZSetOperations.TypedTuple<Object>> topKeywords =
-                redisTemplate.opsForZSet().reverseRangeWithScores(redisKey, 0, 9);
+        for (String region : REGIONS) {
+            String redisKey = "popular:keyword:" + region; //전국 단위 예시
 
-        if (topKeywords == null) return;
+            //Redis에서 Top10 가져오기
+            Set<ZSetOperations.TypedTuple<Object>> topKeywords =
+                    redisTemplate.opsForZSet().reverseRangeWithScores(redisKey, 0, 9);
 
-        //ElasticSearch Bulk Insert
-        BulkRequest bulkRequest = new BulkRequest();
-        for (ZSetOperations.TypedTuple<Object> tuple : topKeywords) {
-            String keyword = (String) tuple.getValue();
-            double count = tuple.getScore() != null ? tuple.getScore() : 0;
+            if (topKeywords == null || topKeywords.isEmpty()) continue;
 
-            IndexRequest indexRequest = new IndexRequest("searches_index")
-                    .source(Map.of(
-                            "keyword", keyword,
-                            "count", count,
-                            "created_at", Instant.now().toString()
-                    ));
-            bulkRequest.add(indexRequest);
+            //ElasticSearch Bulk Insert
+            BulkRequest bulkRequest = new BulkRequest();
+            List<PopularSearch> regionPopularList = new ArrayList<>();
+            int rank = 1;
+
+            for (ZSetOperations.TypedTuple<Object> tuple : topKeywords) {
+                String keyword = (String) tuple.getValue();
+                double count = tuple.getScore() != null ? tuple.getScore() : 0;
+
+                //ES 저장
+                IndexRequest indexRequest = new IndexRequest("searches_index")
+                        .source(Map.of(
+                                "keyword", keyword,
+                                "region", region,
+                                "count", count,
+                                "created_at", Instant.now().toString()
+                        ));
+                bulkRequest.add(indexRequest);
+
+                // DB 저장용
+                PopularSearch ps = new PopularSearch();
+                ps.setKeyword(keyword);
+                ps.setRegion(region);
+                ps.setCount((int) count);
+                ps.setRank(rank++);
+                regionPopularList.add(ps);
+            }
+            elasticClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+            popularSearchRepository.saveAll(regionpopularList);
         }
-        elasticClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+    }
+}
 
-        //DB 업데이트 (캐시 테이블)
-        popularSearchRepository.deleteAll();
-        int rank = 1;
-        List<PopularSearch> popularList = new ArrayList<>();
-        for (ZSetOperations.TypedTuple<Object> tuple : topKeywords) {
-        PopularSearch popularSearch = new PopularSearch();
-        popularSearch.setKeyword((String) tuple.getValue());
-        popularSearch.setCount(tuple.getScore() != null ? tuple.getScore().intValue() : 0);
-        popularList.setRank(rank++);
-        popularList.add(popularSearch);
-        }
-        popularSearchRepository.saveAll(popularList);
-    }
-    }
