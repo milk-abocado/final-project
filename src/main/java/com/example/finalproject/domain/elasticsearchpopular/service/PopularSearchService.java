@@ -1,94 +1,72 @@
 package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
 import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
 import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-@RequiredArgsConstructor
 @Service
+@RequiredArgsConstructor
 public class PopularSearchService {
 
-    private final StringRedisTemplate redisTemplate;
     private final ElasticsearchClient esClient;
     private final PopularSearchRepository popularSearchRepository;
 
-    // Redis → Top10 → Elasticsearch & DB
-    public void aggregateAndStore() throws Exception {
-        Set<String> keys = redisTemplate.keys("search_count:*");
-        if (keys == null || keys.isEmpty()) return;
-
-        Map<String, Map<String, Long>> regionKeywordCount = new HashMap<>();
-
-        for (String key : keys) {
-            String[] parts = key.split(":");
-            if (parts.length < 3) continue;
-            String region = parts[1];
-            String keyword = parts[2];
-            long count = Long.parseLong(redisTemplate.opsForValue().get(key));
-
-            regionKeywordCount.computeIfAbsent(region, r -> new HashMap<>())
-                    .merge(keyword, count, Long::sum);
-        }
-
-        List<PopularSearch> allResults = new ArrayList<>();
-        List<BulkOperation> bulkOps = new ArrayList<>();
-
-        //지역별 Top10 추출 후 MySQL + Elasticsearch 준비
-        for (Map.Entry<String, Map<String, Long>> entry : regionKeywordCount.entrySet()) {
-            String region = entry.getKey();
-
-            List<Map.Entry<String, Long>> top10 = entry.getValue().entrySet()
-                    .stream()
-                    .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
-                    .limit(10)
-                    .collect(Collectors.toList());
-
-            int rank = 1;
-            for (Map.Entry<String, Long> e : top10) {
-                PopularSearch ps = new PopularSearch();
-                ps.setRegion(region);
-                ps.setKeyword(e.getKey());
-                ps.setCount(e.getValue().intValue());
-                ps.setRank(rank++);
-
-                allResults.add(ps);
-
-                //Elasticsearch bulk operation
-                bulkOps.add(BulkOperation.of(b -> b
-                        .index(idx -> idx
-                                .index("searches_index")
-                                .id(region + "_" + ps.getKeyword())
-                                .document(Map.of(
-                                        "keyword", Map.of("input", ps.getKeyword()),
-                                        "region", ps.getRegion(),
-                                        "count", ps.getCount(),
-                                        "rank", ps.getRank()
-                                ))
+    // 자동완성: search_as_you_type
+    public List<String> autoComplete(String input, String region) throws IOException {
+        SearchResponse<JsonNode> response = esClient.search(s -> s
+                .index("popular_searches_index")
+                .query(q -> q
+                        .multiMatch(m -> m
+                                .fields("keyword")
+                                .query(input)
+                                .type(TextQueryType.BoolPrefix) //s_a_y_t 자동완성
                         )
-                ));
-            }
-        }
+                )
+                .size(10)
+                .postFilter(f -> f.term(t -> t.field("region").value(region))),
+                JsonNode.class
+        );
 
-        //Elasticsearch에 bulk 저장
-        if (!bulkOps.isEmpty()) {
-            BulkResponse response = esClient.bulk(b -> b.operations(bulkOps));
-            if (response.errors()) {
-                System.err.println("Bulk indexing had errors: " + response);
-            }
+        return response.hits().hits()
+                .stream()
+                .map(hit -> hit.source().get("keyword").asText())
+                .toList();
+    }
 
-            //MySQL에 동기화
-            popularSearchRepository.deleteAll();
-            popularSearchRepository.saveAll(allResults);
-        }
+    //DB에서 인기검색어 조회
+    public List<PopularSearch> getPopularKeywords(String region) {
+        return popularSearchRepository.findTop10ByRegionOrderByRankAsc(region);
+    }
+
+    //배치 작업: ES 집계 -> DB 저장
+    @Transactional
+    @Scheduled(cron = "0 0 * * * *")
+    public void refreshPopularKeywords() throws IOException {
+        //1. ES에서 집계 쿼리 실행
+        AggregateResponse aggregateResponse = esClient.search(s -> s
+                .index("popular_searches_index")
+                .size(0)
+                .aggregations("by_region", a -> a
+                        .terms(t -> t.field("region.keyword"))
+                        .aggregations("top_keywords", aa -> aa
+                                .terms(t -> t.field("keyword.keyword").size(10))
+                        )
+                ),
+                JsonNode.class
+        ).aggregations();
+
+        // 2. 결과를 DB에 반영 (지역별 상위 10개 저장)
+        popularSearchRepository.deleteAll(); // 최신화
+        // ... aggResponse 파싱 → PopularSearch 엔티티 저장
     }
 }
