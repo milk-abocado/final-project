@@ -69,4 +69,7 @@ public class PopularSearchService {
         popularSearchRepository.deleteAll(); // 최신화
         // ... aggResponse 파싱 → PopularSearch 엔티티 저장
     }
+
+    public List<String> suggestKeywords(String region, String q) {
+    }
 }
