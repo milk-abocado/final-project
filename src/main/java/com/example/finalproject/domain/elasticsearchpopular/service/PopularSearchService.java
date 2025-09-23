@@ -10,6 +10,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.ArrayList;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -41,6 +43,7 @@ public class PopularSearchService {
         List<PopularSearch> allResults = new ArrayList<>();
         List<BulkOperation> bulkOps = new ArrayList<>();
 
+        //지역별 Top10 추출 후 MySQL + Elasticsearch 준비
         for (Map.Entry<String, Map<String, Long>> entry : regionKeywordCount.entrySet()) {
             String region = entry.getKey();
 
@@ -60,21 +63,30 @@ public class PopularSearchService {
 
                 allResults.add(ps);
 
+                //Elasticsearch bulk operation
                 bulkOps.add(BulkOperation.of(b -> b
                         .index(idx -> idx
                                 .index("searches_index")
                                 .id(region + "_" + ps.getKeyword())
-                                .document(ps)
+                                .document(Map.of(
+                                        "keyword", Map.of("input", ps.getKeyword()),
+                                        "region", ps.getRegion(),
+                                        "count", ps.getCount(),
+                                        "rank", ps.getRank()
+                                ))
                         )
                 ));
             }
         }
 
+        //Elasticsearch에 bulk 저장
         if (!bulkOps.isEmpty()) {
             BulkResponse response = esClient.bulk(b -> b.operations(bulkOps));
             if (response.errors()) {
                 System.err.println("Bulk indexing had errors: " + response);
             }
+
+            //MySQL에 동기화
             popularSearchRepository.deleteAll();
             popularSearchRepository.saveAll(allResults);
         }
