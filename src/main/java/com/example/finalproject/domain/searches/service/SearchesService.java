@@ -11,7 +11,6 @@ import org.apache.coyote.BadRequestException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.Comparator;
 import java.util.List;
@@ -24,12 +23,6 @@ import java.util.stream.Collectors;
 public class SearchesService {
     private final SearchesRepository searchesRepository;
     private final UsersRepository usersRepository;
-
-    public SearchesService(SearchesRepository searchesRepository,
-                           UsersRepository usersRepository) {
-        this.searchesRepository = searchesRepository;
-        this.usersRepository = usersRepository;
-    }
 
     public SearchesResponseDto saveOrUpdate(SearchesRequestDto request) throws BadRequestException {
         //400: keyword/region 누락, 길이 초과

@@ -1,5 +1,6 @@
 package com.example.finalproject.config;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
 import co.elastic.clients.elasticsearch.indices.GetIndexRequest;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
@@ -7,8 +8,6 @@ import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest5_client.Rest5ClientTransport;
 import co.elastic.clients.transport.rest5_client.low_level.RequestOptions;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
-import com.example.finalproject.domain.elasticsearchpopular.service.ElasticsearchClient;
-import com.example.finalproject.elasticsearchpopular.service.ElasticsearchClient;
 import io.jsonwebtoken.io.IOException;
 import jakarta.annotation.PostConstruct;
 import org.apache.hc.core5.http.HttpHost;
