@@ -22,7 +22,7 @@ public class PopularSearchService {
     private final PopularSearchRepository popularSearchRepository;
 
     // 자동완성: search_as_you_type
-    public List<String> autoComplete(String input, String region) throws IOException {
+    public List<String> autoComplete(String input, String region) throws IOException, java.io.IOException {
         SearchResponse<JsonNode> response = esClient.search(s -> s
                 .index("popular_searches_index")
                 .query(q -> q
@@ -51,7 +51,7 @@ public class PopularSearchService {
     //배치 작업: ES 집계 -> DB 저장
     @Transactional
     @Scheduled(cron = "0 0 * * * *")
-    public void refreshPopularKeywords() throws IOException {
+    public void refreshPopularKeywords() throws IOException, java.io.IOException {
         //1. ES에서 집계 쿼리 실행
         AggregateResponse aggregateResponse = esClient.search(s -> s
                 .index("popular_searches_index")
