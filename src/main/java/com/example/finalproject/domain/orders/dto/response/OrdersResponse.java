@@ -17,7 +17,6 @@ public class OrdersResponse {
     private String status;
     private List<OrderItemsResponse> items;
     private Integer orderTotalPrice;
-    // 쿠폰 & 포인트 추후 구현 예정
     private Integer usedPoints;
     private OrderCouponsResponse appliedCoupon;
     private Integer totalPrice;

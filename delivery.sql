@@ -170,11 +170,14 @@ CREATE TABLE orders (
     store_id    BIGINT                                                                                   NOT NULL,
     total_price INT                                                                                      NOT NULL,
     status      ENUM ('WAITING', 'ACCEPTED','COOKING' 'DELIVERING', 'COMPLETED', 'REJECTED', 'CANCELED') NOT NULL, -- 주문 상태
-    -- REJECTED, CANCLED 추가 - 주문 거절(사장, 사용자), 주문 취소(고객센터)
+    -- REJECTED, CANCELED 추가 - 주문 거절(사장, 사용자), 주문 취소(고객센터)
+    applied_coupon_id BIGINT,
+    used_points INT,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id),
-    FOREIGN KEY (store_id) REFERENCES stores (id)
+    FOREIGN KEY (store_id) REFERENCES stores (id),
+    FOREIGN KEY (applied_coupon_id) REFERENCES coupons(id)
 );
 
 CREATE TABLE order_items (
@@ -303,4 +306,20 @@ ALTER TABLE reviews
     ADD COLUMN deleted_by VARCHAR(16) NULL,
     ADD COLUMN updated_at DATETIME NULL;
 
+
+ALTER TABLE orders
+    ADD COLUMN applied_coupon_id BIGINT,
+    ADD CONSTRAINT fk_orders_coupon FOREIGN KEY (applied_coupon_id) REFERENCES coupons(id);
+
+ALTER TABLE orders
+    ADD COLUMN used_points INT;
+
+ALTER TABLE user_coupons
+    ADD COLUMN used_at TIMESTAMP NULL;
+
 CREATE INDEX idx_reviews_is_deleted ON reviews (is_deleted);
+
+ALTER TABLE notifications MODIFY COLUMN user_id BIGINT NULL;
+ALTER TABLE notifications ADD COLUMN status ENUM('SUCCESS','FAILED') NOT NULL;
+ALTER TABLE notifications MODIFY COLUMN type ENUM('USER','ALL') NOT NULL;
+ALTER TABLE notifications ADD COLUMN error_message VARCHAR(500);
