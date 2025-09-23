@@ -1,27 +1,30 @@
 package com.example.finalproject.domain.users.dto;
 
-import com.example.finalproject.domain.users.UserRole;
 import com.example.finalproject.domain.users.entity.Users;
+import lombok.*;
 
-import java.time.LocalDateTime;
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
+@Builder
+public class UserDetailResponse {
+    private Long id;
+    private String email;
+    private String nickname;
 
-public record UserDetailResponse(
-        Long id,
-        String email,
-        String name,
-        String nickname,
-        UserRole role,
-        boolean socialLogin,
-        String phoneNumber,
-        boolean deleted,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) {
+    private String phoneNumber;
+    private String address;
+    private String addressDetail;
+    private String zipCode;
+
     public static UserDetailResponse from(Users u) {
-        return new UserDetailResponse(
-                u.getId(), u.getEmail(), u.getName(), u.getNickname(),
-                u.getRole(), u.isSocialLogin(), u.getPhoneNumber(),
-                u.isDeleted(), u.getCreatedAt(), u.getUpdatedAt()
-        );
+        return UserDetailResponse.builder()
+                .id(u.getId())
+                .email(u.getEmail())
+                .nickname(u.getNickname())
+                .phoneNumber(u.getPhoneNumber())
+                .address(u.getAddress())
+                .addressDetail(u.getAddressDetail())
+                .zipCode(u.getZipCode())
+                .build();
     }
 }
