@@ -1,11 +1,8 @@
 package com.example.finalproject.domain.elasticsearchpopular.service;
 
-import co.elastic.clients.elasticsearch._types.aggregations.AggregationBuilders;
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
-import co.elastic.clients.elasticsearch.core.SearchRequest;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.transport.rest5_client.low_level.RequestOptions;
 import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
 import com.example.finalproject.domain.elasticsearchpopular.entity.Region;
@@ -24,7 +21,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class PopularSearchService {
     private final RedisTemplate<String, Object> redisTemplate;
-    private final RestHighLevelClient elasticClient;
+    private final ElasticsearchClient elasticClient;
     private final PopularSearchRepository popularSearchRepository;
     private final RegionRepository regionRepository;
 

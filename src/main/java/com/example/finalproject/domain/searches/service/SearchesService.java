@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class SearchesService {
     private final SearchesRepository searchesRepository;
     private final UsersRepository usersRepository;
@@ -162,7 +163,6 @@ public class SearchesService {
         searchesRepository.delete(searches);
     }
 
-    @RequiredArgsConstructor
     //인기 검색어: 사용자 검색 처리(Redis 카운트 증가)
     private final RedisTemplate<String, Object> redisTemplate;
 
