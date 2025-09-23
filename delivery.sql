@@ -252,11 +252,11 @@ CREATE TABLE popular_searches (
                                   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 지역 리스트 DB에서 가져오는 방식 사용
-CREATE TABLE regions (
-                         id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                         name VARCHAR(50) NOT NULL UNIQUE
-);
+# -- 지역 리스트 DB에서 가져오는 방식 사용
+# CREATE TABLE regions (
+#                          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+#                          name VARCHAR(50) NOT NULL UNIQUE
+# );
 
 -- 7. 알림
 CREATE TABLE notifications (
