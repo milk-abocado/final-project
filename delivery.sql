@@ -306,11 +306,20 @@ ALTER TABLE reviews
     ADD COLUMN deleted_by VARCHAR(16) NULL,
     ADD COLUMN updated_at DATETIME NULL;
 
+
+ALTER TABLE orders
+    ADD COLUMN applied_coupon_id BIGINT,
+    ADD CONSTRAINT fk_orders_coupon FOREIGN KEY (applied_coupon_id) REFERENCES coupons(id);
+
+ALTER TABLE orders
+    ADD COLUMN used_points INT;
+
+ALTER TABLE user_coupons
+    ADD COLUMN used_at TIMESTAMP NULL;
+
 CREATE INDEX idx_reviews_is_deleted ON reviews (is_deleted);
 
-# ALTER TABLE orders
-#     ADD COLUMN applied_coupon_id BIGINT,
-#     ADD CONSTRAINT fk_orders_coupon FOREIGN KEY (applied_coupon_id) REFERENCES coupons(id);
-#
-# ALTER TABLE orders
-#     ADD COLUMN used_points INT;
+ALTER TABLE notifications MODIFY COLUMN user_id BIGINT NULL;
+ALTER TABLE notifications ADD COLUMN status ENUM('SUCCESS','FAILED') NOT NULL;
+ALTER TABLE notifications MODIFY COLUMN type ENUM('USER','ALL') NOT NULL;
+ALTER TABLE notifications ADD COLUMN error_message VARCHAR(500);

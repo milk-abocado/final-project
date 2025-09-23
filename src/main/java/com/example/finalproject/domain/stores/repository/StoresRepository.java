@@ -33,9 +33,7 @@ public interface StoresRepository extends JpaRepository<Stores, Long> {
      */
     boolean existsByAddressAndActiveTrueAndRetiredAtIsNull(String address);
 
-    /**
-     * 주소 중복 체크 (수정용: 자기 자신 제외) — 운영 중인 가게와만 충돌 금지
-     */
+    /** 주소 중복 체크 (수정용: 자기 자신 제외) — 운영 중인 가게와만 충돌 금지 */
     boolean existsByAddressAndActiveTrueAndRetiredAtIsNullAndIdNot(String address, Long id);
 
     /**
@@ -49,6 +47,9 @@ public interface StoresRepository extends JpaRepository<Stores, Long> {
 
     /** 조회 시 ACTIVE만 보이게 하고 싶을 때 사용 (폐업 제외) */
     Optional<Stores> findByIdAndActiveTrueAndRetiredAtIsNull(Long id);
+
+    /** 특정 가게(storeId)가 특정 오너(ownerId)의 소유인지 여부 확인 */
+    boolean existsByIdAndOwner_Id(Long storeId, Long ownerId);
 
     /** 특정 오너가 소유한 가게의 storeId 리스트 가져오기 */
     @Query(value = "SELECT id FROM stores WHERE owner_id = :ownerId", nativeQuery = true)

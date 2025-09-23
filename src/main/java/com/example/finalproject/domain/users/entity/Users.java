@@ -53,6 +53,9 @@ public class Users {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "allow_notifications", nullable = false)
+    private Boolean allowNotifications = false;
+
     @PrePersist
     void onCreate() {
         LocalDateTime now = LocalDateTime.now();
