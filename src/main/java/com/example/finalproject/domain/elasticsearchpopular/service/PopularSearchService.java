@@ -44,6 +44,10 @@ public class PopularSearchService {
     public List<String> autoComplete(String keyword, String region) {
         return List.of();
     }
+
+    public List<PopularSearch> getPopularKeywords(String region) {
+        return List.of();
+    }
 }
 
 
