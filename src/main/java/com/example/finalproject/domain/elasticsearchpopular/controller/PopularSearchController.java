@@ -1,6 +1,7 @@
 package com.example.finalproject.domain.elasticsearchpopular.controller;
 
 import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchService;
+import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
