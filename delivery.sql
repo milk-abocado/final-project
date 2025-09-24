@@ -259,6 +259,16 @@ CREATE TABLE searches (
                           FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
+-- elasticsearch 활용한 인기 검색어
+CREATE TABLE popular_searches (
+                                  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                  keyword VARCHAR(100) NOT NULL,
+                                  region VARCHAR(50),
+                                  count INT NOT NULL,
+                                  rank INT NOT NULL,
+                                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 7. 알림
 CREATE TABLE notifications (
                                id         BIGINT AUTO_INCREMENT PRIMARY KEY,
