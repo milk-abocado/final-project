@@ -8,4 +8,5 @@ import lombok.Setter;
 public class OrderCouponsResponse {
     private Long couponId;
     private String code;
+    private Integer discountAmount;
 }

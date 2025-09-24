@@ -4,21 +4,24 @@ import com.example.finalproject.domain.carts.dto.response.CartsItemResponse;
 import com.example.finalproject.domain.carts.dto.response.CartsResponse;
 import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.carts.service.CartsService;
+import com.example.finalproject.domain.coupons.entity.CouponType;
+import com.example.finalproject.domain.coupons.entity.Coupons;
+import com.example.finalproject.domain.coupons.repository.CouponsRepository;
+import com.example.finalproject.domain.coupons.service.CouponsService;
 import com.example.finalproject.domain.menus.entity.MenuOptionChoices;
 import com.example.finalproject.domain.menus.entity.Menus;
 import com.example.finalproject.domain.menus.repository.MenuOptionChoicesRepository;
 import com.example.finalproject.domain.menus.repository.MenusRepository;
 import com.example.finalproject.domain.orders.dto.request.OrdersRequest;
-import com.example.finalproject.domain.orders.dto.response.OrderItemsResponse;
-import com.example.finalproject.domain.orders.dto.response.OrderOptionsResponse;
-import com.example.finalproject.domain.orders.dto.response.OrderStatusResponse;
-import com.example.finalproject.domain.orders.dto.response.OrdersResponse;
+import com.example.finalproject.domain.orders.dto.response.*;
 import com.example.finalproject.domain.orders.entity.OrderItems;
 import com.example.finalproject.domain.orders.entity.OrderOptions;
 import com.example.finalproject.domain.orders.entity.Orders;
 import com.example.finalproject.domain.orders.repository.OrderItemsRepository;
 import com.example.finalproject.domain.orders.repository.OrderOptionsRepository;
 import com.example.finalproject.domain.orders.repository.OrdersRepository;
+import com.example.finalproject.domain.points.dto.PointsDtos;
+import com.example.finalproject.domain.points.service.PointsService;
 import com.example.finalproject.domain.slack.service.SlackService;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
@@ -35,6 +38,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -52,6 +56,9 @@ public class OrdersService {
     private final OrderOptionsRepository orderOptionsRepository;
     private final CartsService cartsService; // Redis에서 장바구니 조회
     private final SlackService slackService;
+    private final CouponsRepository couponsRepository;
+    private final CouponsService couponsService;
+    private final PointsService pointsService;
 
     @Transactional
     public OrdersResponse createOrder(Long userId, OrdersRequest request) {
@@ -70,15 +77,60 @@ public class OrdersService {
         Stores store = storesRepository.findById(cart.getStoreId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
 
+        // 기본 가격
+        int totalPrice = cart.getCartTotalPrice();
+
         // Orders 엔티티 생성
         Orders order = new Orders();
         order.setUser(user);
         order.setStore(store);
         order.setStatus(Orders.Status.WAITING);
-        order.setTotalPrice(cart.getCartTotalPrice());
+        order.setTotalPrice(totalPrice);
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 
+        ordersRepository.save(order);
+
+        // 쿠폰 적용
+        if (request.getUsedCouponId() != null) {
+            Coupons coupon = couponsRepository.findById(request.getUsedCouponId())
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 쿠폰입니다."));
+
+            int discount = 0;
+            if (coupon.getType() == CouponType.RATE) {
+                discount = (int) (totalPrice * (coupon.getDiscountValue() / 100.0));
+                if (coupon.getMaxDiscount() != null) {
+                    discount = Math.min(discount, coupon.getMaxDiscount());
+                }
+            } else if (coupon.getType() == CouponType.AMOUNT) {
+                discount = coupon.getDiscountValue();
+            }
+
+            totalPrice -= discount;
+            if (totalPrice < 0) totalPrice = 0;
+
+            // 쿠폰 사용 처리
+            couponsService.useCoupon(userId, coupon.getCode(), order.getId());
+            order.setAppliedCoupon(coupon);
+        }
+
+        // 포인트 사용
+        if (request.getUsedPoints() != null && request.getUsedPoints() > 0) {
+            PointsDtos.UseRequest useRequest = new PointsDtos.UseRequest();
+            useRequest.setUserId(userId);
+            useRequest.setOrderId(order.getId());
+            useRequest.setAmount(request.getUsedPoints());
+
+            pointsService.usePoints(user, useRequest);
+
+            totalPrice -= request.getUsedPoints();
+            if (totalPrice < 0) totalPrice = 0;
+
+            order.setUsedPoints(request.getUsedPoints());
+        }
+
+        // 최종 가격 업데이트
+        order.setTotalPrice(totalPrice);
         ordersRepository.save(order);
 
         // OrderItems, OrderOptions 생성
@@ -131,6 +183,16 @@ public class OrdersService {
         Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
 
+        // 상태 확인
+        Orders.Status status = Arrays.stream(Orders.Status.values())
+                .filter(s -> s.name().equalsIgnoreCase(statusStr))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 주문 상태입니다."));
+
+        if (!order.getStatus().canTransitionTo(status)) {
+            throw new IllegalArgumentException("주문 상태 '" + order.getStatus() + "' → '" + status + "' 전환은 허용되지 않습니다.");
+        }
+
         // OWNER 권한 여부 확인
         boolean isOwner = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -149,19 +211,21 @@ public class OrdersService {
             if (!storeOwnerId.equals(userId)) {
                 throw new AccessDeniedException("이 가게의 OWNER만 접근할 수 있습니다.");
             }
+            if (status.equals(Orders.Status.CANCELED)) {
+                throw new AccessDeniedException("주문 상태 'CANCELED'는 OWNER가 직접 변경할 수 없습니다. 고객센터에 문의하세요.");
+            }
         }
         // USER: 주문자 본인인지 확인
         else if (isUser) {
             if (!order.getUser().getId().equals(userId)) {
                 throw new AccessDeniedException("본인 주문만 접근할 수 있습니다.");
             }
-        }
-
-        Orders.Status status;
-        try {
-            status = Orders.Status.valueOf(statusStr.toUpperCase()); // 대소문자 둘다 OK
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("유효하지 않은 주문 상태입니다: " + statusStr);
+            if (status.equals(Orders.Status.CANCELED)) {
+                throw new AccessDeniedException("주문 상태 'CANCELED'는 USER가 직접 변경할 수 없습니다. 고객센터에 문의하세요.");
+            }
+            else if (!status.equals(Orders.Status.REJECTED)) {
+                throw new AccessDeniedException("주문 상태 '"+status+"'는 USER가 변경할 수 없습니다.");
+            }
         }
 
         order.setStatus(status);
@@ -176,7 +240,6 @@ public class OrdersService {
         if (status == Orders.Status.COMPLETED) {
             slackService.sendOwnerMessage("[사장님 알림] 배달이 완료되었습니다.");
         }
-
 
         OrderStatusResponse resp = new OrderStatusResponse();
         resp.setOrderId(order.getId());
@@ -307,18 +370,40 @@ public class OrdersService {
 
         response.setItems(items);
 
-        // 현재는 쿠폰, 포인트 미사용 <- 나중에 연결 예정
-        response.setUsedPoints(0);
-        response.setAppliedCoupon(null);
-
-        // 총 금액 계산
+        // 쿠폰, 포인트 적용 전 가격
         int totalPrice = items.stream().mapToInt(OrderItemsResponse::getTotalPrice).sum();
         response.setOrderTotalPrice(totalPrice);
-        response.setTotalPrice(totalPrice);
+
+        // 쿠폰, 포인트
+        response.setUsedPoints(order.getUsedPoints() != null ? order.getUsedPoints() : 0);
+        if (order.getAppliedCoupon() != null) {
+            Coupons coupon = order.getAppliedCoupon();
+            OrderCouponsResponse couponResp = new OrderCouponsResponse();
+            couponResp.setCouponId(coupon.getId());
+            couponResp.setCode(coupon.getCode());
+
+            // 할인 금액
+            int discount = 0;
+            if (coupon.getType() == CouponType.RATE) {
+                discount = (int) (response.getOrderTotalPrice() * (coupon.getDiscountValue() / 100.0));
+                if (coupon.getMaxDiscount() != null) {
+                    discount = Math.min(discount, coupon.getMaxDiscount());
+                }
+            } else if (coupon.getType() == CouponType.AMOUNT) {
+                discount = coupon.getDiscountValue();
+            }
+
+            couponResp.setDiscountAmount(discount); // 조회용 할인 금액 세팅
+
+            response.setAppliedCoupon(couponResp);
+        } else {
+            response.setAppliedCoupon(null);
+        }
+
+        // 쿠폰, 포인트 적용 후 가격
+        int finalTotal = order.getTotalPrice();
+        response.setTotalPrice(finalTotal);
 
         return response;
     }
-
-
-
 }

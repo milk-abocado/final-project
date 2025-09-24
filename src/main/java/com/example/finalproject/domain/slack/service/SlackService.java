@@ -17,6 +17,9 @@ public class SlackService {
     @Value("${slack.userChannel}")
     private String userChannel;
 
+    @Value("${slack.allUserChannel}")
+    private String allUserChannel;
+
     //사장님 전용 알림
     public void sendOwnerMessage(String text) {
         sendMessage(ownerChannel, text);
@@ -38,5 +41,10 @@ public class SlackService {
         } catch (Exception e) {
             throw new SlackException("메세지 전송을 실패하였습니다.", e);
         }
+    }
+
+    //전체 알림
+    public void sendAllUserMessage(String text) {
+        sendMessage(allUserChannel, text);
     }
 }
