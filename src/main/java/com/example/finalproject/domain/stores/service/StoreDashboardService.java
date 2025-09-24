@@ -79,7 +79,7 @@ public class StoreDashboardService {
         // (1) 현재 사용자 조회 (SecurityContextHolder → email → Users)
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = (auth != null) ? auth.getName() : null;
-        Users me = usersRepository.findByEmail(email)
+        Users me = usersRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "로그인 정보를 확인해 주세요."));
 
         // (2) 소유권 검증

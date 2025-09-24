@@ -1,6 +1,5 @@
 package com.example.finalproject.domain.users.controller;
 
-import com.example.finalproject.config.CustomUserPrincipal;
 import com.example.finalproject.domain.users.dto.UserDetailResponse;
 import com.example.finalproject.domain.users.dto.UserProfileUpdateRequest;
 import com.example.finalproject.domain.users.dto.UserSummaryResponse;
