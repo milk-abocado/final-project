@@ -18,7 +18,7 @@ public class PopularSearchController {
     private final PopularSearchService searchService;
 
     @GetMapping("/suggest")
-    public List<String> suggest(@RequestParam String region, @RequestParam String q) throws IOException {
+    public List<String> suggest(@RequestParam String region, @RequestParam String q) throws IOException, java.io.IOException {
         return searchService.suggestKeywords(region, q);
     }
 }
