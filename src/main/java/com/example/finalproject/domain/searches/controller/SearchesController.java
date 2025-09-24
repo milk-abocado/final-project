@@ -111,7 +111,7 @@ public class SearchesController {
     @GetMapping("/autocomplete")
     public List<String> autoComplete(
             @RequestParam String keyword,
-            @RequestParam String region) throws IOException {
+            @RequestParam String region) throws Exception {
         return popularSearchService.autoComplete(keyword, region);
     }
 

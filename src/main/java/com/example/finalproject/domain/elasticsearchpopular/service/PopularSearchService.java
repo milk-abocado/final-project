@@ -1,53 +1,65 @@
 package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class PopularSearchService {
-
     private final ElasticsearchClient esClient;
+    private static final String INDEX = "popular_searches_index";
 
-    public List<String> getTop10ByRegion(String region) throws IOException {
-        SearchResponse<PopularSearch> response = esClient.search(s -> s
-                        .index("popular_searches_index")
+    /**
+     * 검색어 자동완성: search_as_you_type 기반
+      */
+    public List<String> autoComplete(String keyword, String region) throws Exception {
+        var resp = esClient.search(s -> s
+                        .index(INDEX)
+                        .size(10)
                         .query(q -> q
-                                .term(t -> t
-                                        .field("region")
-                                        .value(region)
+                                .bool(b -> b
+                                        .must(m -> m.term(t -> t.field("region").value(region)))
+                                        .must(m -> m.match(ma -> ma.field("keyword").query(keyword)))
                                 )
                         )
+                        .sort(so -> so.field(f -> f.field("count").order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)))
+                , Map.class
+        );
+
+        List<String> results = new ArrayList<>();
+        for (var hit : resp.hits().hits()) {
+            results.add(hit.source().get("keyword").toString());
+        }
+        return results;
+    }
+
+    /**
+     * Elastic 조회, 지역별 Top10
+     */
+
+    public List<Map<String, Object>> getTop10ByRegion(String region) throws Exception {
+        var response = esClient.search(s -> s
+                        .index(INDEX)
                         .size(10)
-                        .sort(so -> so.field(f -> f.field("count").order(SortOrder.Desc)))
-                , PopularSearch.class);
+                        .query(q -> q.term(t -> t.field("region").value(region)))
+                        .sort(so -> so.field(f -> f.field("count").order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)))
+                , Map.class);
 
-        return response.hits().hits().stream()
-                .map(Hit::source)
-                .map(PopularSearch::getKeyword)
-                .collect(Collectors.toList());
-    }
-
-    public List<String> suggestKeywords(String region, String q) {
-        return List.of();
-    }
-
-    public List<String> autoComplete(String keyword, String region) {
-        return List.of();
+        List<Map<String, Object>> top10 = new ArrayList<>();
+        for (var hit : response.hits().hits()) {
+            top10.add(hit.source());
+        }
+        return top10;
     }
 
     public List<PopularSearch> getPopularKeywords(String region) {
         return List.of();
     }
 }
-
-

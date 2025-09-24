@@ -1,27 +1,28 @@
 package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import lombok.RequiredArgsConstructor;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
+import java.io.IOException;
+
 @Component
-@RequiredArgsConstructor
-public class ElasticsearchInitializer implements CommandLineRunner {
+public class ElasticSearchInitializer {
 
-    /**
-     * search_as_you_type 매핑: 애플리케이션 실행 시 자동 매핑 가능(인덱스)
-     */
     private final ElasticsearchClient esClient;
+    private static final String INDEX = "popular_searches_index";
 
-    @Override
-    public void run(String... args) throws Exception {
-        String indexName = "popular_searches_index";
+    public ElasticSearchInitializer(ElasticsearchClient esClient) {
+        this.esClient = esClient;
+    }
 
-        boolean exists = esClient.indices().exists(e -> e.index(indexName)).value();
+    @PostConstruct
+    public void createIndexIfNotExists() throws IOException {
+        boolean exists = esClient.indices().exists(e -> e.index(INDEX)).value();
+
         if (!exists) {
             esClient.indices().create(c -> c
-                    .index(indexName)
+                    .index(INDEX)
                     .mappings(m -> m
                             .properties("keyword", p -> p.searchAsYouType(s -> s))
                             .properties("region", p -> p.keyword(k -> k))
@@ -30,6 +31,9 @@ public class ElasticsearchInitializer implements CommandLineRunner {
                             .properties("created_at", p -> p.date(d -> d))
                     )
             );
+            System.out.println("ElasticSearch index '" + INDEX + "' created with search_as_you_type mapping.");
+        } else {
+            System.out.println("ElasticSearch index '" + INDEX + "' already exists.");
         }
     }
 }

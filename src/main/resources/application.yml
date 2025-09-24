@@ -23,6 +23,11 @@ logging:
   level:
     com.example.finalproject.config: DEBUG
     org.springframework.security: DEBUG
+
+redis:
+  host: localhost
+  port: 6379
+
 elasticsearch:
-  ELASTIC_API_KEY=Vl9OSmNaa0JFVlBhQ3h2Z3lIMjM6bFNFSm9nUVZfc0JfdFpxMnZra21nUQ==
-  ELASTICSEARCH_URL=https://28799a962ae84ded8fba79de2f5db140.asia-northeast3.gcp.elastic-cloud.com:443
+  ELASTIC_API_KEY: ${Vl9OSmNaa0JFVlBhQ3h2Z3lIMjM6bFNFSm9nUVZfc0JfdFpxMnZra21nUQ==}
+  ELASTICSEARCH_URL: ${https://28799a962ae84ded8fba79de2f5db140.asia-northeast3.gcp.elastic-cloud.com:443}
