@@ -16,11 +16,13 @@ public class UsersService {
 
     private final UsersRepository usersRepository;
 
-    @Transactional(readOnly = true)
-    public UserDetailResponse getDetail(Long id) {
-        Users user = usersRepository.findById(id)
+    @Transactional
+    public UserDetailResponse updateProfileByEmail(String email, UserProfileUpdateRequest req) {
+        Users user = usersRepository.findByEmailIgnoreCase(email.trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."));
-        return UserDetailResponse.from(user);
+
+        // 기존 id 기반 메서드 재사용
+        return updateProfile(user.getId(), req);
     }
 
     @Transactional
@@ -28,13 +30,28 @@ public class UsersService {
         Users user = usersRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."));
 
-        // null 아닌 값만 반영 (부분 업데이트)
-        if (req.getNickname() != null)      user.changeNickname(req.getNickname().trim());
-        if (req.getPhoneNumber() != null)   user.changePhoneNumber(req.getPhoneNumber().trim());
-        if (req.getAddress() != null)       user.changeAddress(req.getAddress().trim());
-        if (req.getAddressDetail() != null) user.changeAddressDetail(req.getAddressDetail().trim());
-        if (req.getZipCode() != null)       user.changeZipCode(req.getZipCode().trim());
+        // null/공백 제외 + 변경된 값만 반영 (선택 개선)
+        if (org.springframework.util.StringUtils.hasText(req.getNickname())) {
+            String v = req.getNickname().trim();
+            if (!v.equals(user.getNickname())) user.changeNickname(v);
+        }
+        if (org.springframework.util.StringUtils.hasText(req.getPhoneNumber())) {
+            String v = req.getPhoneNumber().trim();
+            if (!v.equals(user.getPhoneNumber())) user.changePhoneNumber(v);
+        }
+        if (org.springframework.util.StringUtils.hasText(req.getAddress())) {
+            String v = req.getAddress().trim();
+            if (!v.equals(user.getAddress())) user.changeAddress(v);
+        }
+        if (org.springframework.util.StringUtils.hasText(req.getAddressDetail())) {
+            String v = req.getAddressDetail().trim();
+            if (!v.equals(user.getAddressDetail())) user.changeAddressDetail(v);
+        }
+        if (org.springframework.util.StringUtils.hasText(req.getZipCode())) {
+            String v = req.getZipCode().trim();
+            if (!v.equals(user.getZipCode())) user.changeZipCode(v);
+        }
 
-        return UserDetailResponse.from(user); // JPA dirty checking
+        return UserDetailResponse.from(user); // @Transactional + dirty checking
     }
 }

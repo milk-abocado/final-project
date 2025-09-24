@@ -2,6 +2,7 @@ package com.example.finalproject.config;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,28 +28,44 @@ public class TokenProvider {
 
     private final TokenProperties props;
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Keys / Parsers
-    // ─────────────────────────────────────────────────────────────────────
+    // ── Keys / Parsers ───────────────────────────────────────────────────
     private Key accessKey;
     private Key refreshKey;
 
     private JwtParser accessParser;
     private JwtParser refreshParser;
 
+    // ── Init ────────────────────────────────────────────────────────────
     @PostConstruct
     void init() {
-        this.accessKey  = hmacKey(props.getAccess().getSecret());
-        this.refreshKey = hmacKey(props.getRefresh().getSecret());
+        if (props == null || props.getAccess() == null || props.getRefresh() == null) {
+            throw new IllegalStateException("jwt properties not bound");
+        }
+        String accessSecret  = props.getAccess().getSecret();
+        String refreshSecret = props.getRefresh().getSecret();
+        if (!StringUtils.hasText(accessSecret))  throw new IllegalStateException("jwt.access.secret is missing");
+        if (!StringUtils.hasText(refreshSecret)) throw new IllegalStateException("jwt.refresh.secret is missing");
 
-        // JJWT 0.11.x
+        this.accessKey  = hmacKey(accessSecret);   // UTF-8 고정
+        this.refreshKey = hmacKey(refreshSecret);  // UTF-8 고정
+
         this.accessParser  = Jwts.parserBuilder().setSigningKey(accessKey).build();
         this.refreshParser = Jwts.parserBuilder().setSigningKey(refreshKey).build();
 
-        if (log.isInfoEnabled()) {
-            log.info("TokenProvider initialized. accessTTL={}s, refreshTTL={}s",
-                    props.getAccess().getTtlSeconds(), props.getRefresh().getTtlSeconds());
-        }
+        log.info("TokenProvider initialized. accessTTL={}s, refreshTTL={}s",
+                props.getAccess().getTtlSeconds(), props.getRefresh().getTtlSeconds());
+        log.info("accessKey.fp={}", fp(accessSecret));   // 값 노출 없이 지문만
+        log.info("refreshKey.fp={}", fp(refreshSecret));
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────
+    private String fp(String s) {
+        try {
+            byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+            var md = java.security.MessageDigest.getInstance("SHA-256");
+            var d = md.digest(bytes);
+            return java.util.HexFormat.of().formatHex(Arrays.copyOf(d, 6)); // 앞 6바이트만
+        } catch (Exception e) { return "fp_err"; }
     }
 
     public static String stripBearer(String header) {
@@ -60,25 +77,57 @@ public class TokenProvider {
         return null;
     }
 
-    public boolean validateAccessToken(String token) {
-        return validate(token, accessParser, "access");
+    private static String joinRoles(Collection<String> roles) {
+        if (roles == null || roles.isEmpty()) return null;
+        return roles.stream().filter(Objects::nonNull).map(String::trim)
+                .filter(s -> !s.isEmpty()).collect(Collectors.joining(","));
     }
 
-    public boolean validateRefreshToken(String token) {
-        return validate(token, refreshParser, "refresh");
+    private static String optStr(Object v) { return v == null ? null : v.toString(); }
+
+    private static Key hmacKey(String secret) {
+        // UTF-8 문자열을 키로 사용
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < 32) {
+            throw new IllegalStateException("jwt secret must be >= 32 bytes (UTF-8)");
+        }
+        return Keys.hmacShaKeyFor(bytes);
     }
 
-    public Claims parseRefresh(String token) {
-        return refreshParser.parseClaimsJws(token).getBody();
+    // ── Validate / Parse ────────────────────────────────────────────────
+    public boolean validateAccessToken(String token)  { return validate(token, accessParser, "access"); }
+    public boolean validateRefreshToken(String token) { return validate(token, refreshParser, "refresh"); }
+
+    // 원인별 로깅 강화
+    private boolean validate(String token, JwtParser parser, String typ) {
+        try {
+            parser.parseClaimsJws(token);
+            if (log.isDebugEnabled()) log.debug("{} token valid", typ);
+            return true;
+        } catch (ExpiredJwtException e) {
+            log.warn("{} token expired: {}", typ, e.getMessage());
+        } catch (UnsupportedJwtException e) {
+            log.warn("Unsupported {} token: {}", typ, e.getMessage());
+        } catch (MalformedJwtException e) {
+            log.warn("Malformed {} token: {}", typ, e.getMessage());
+        } catch (SignatureException e) {
+            log.warn("{} token signature invalid: {}", typ, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.warn("{} token illegal arg: {}", typ, e.getMessage());
+        }
+        return false;
     }
 
+    public Claims parseRefresh(String token) { return refreshParser.parseClaimsJws(token).getBody(); }
+
+    // ── Authentication ──────────────────────────────────────────────────
     public Authentication getAuthenticationFromAccess(String token) {
         Claims c = accessParser.parseClaimsJws(token).getBody();
 
         String uid   = optStr(c.get("uid"));
-        String email = optStr(c.get("email"));        // 없을 수 있음
-        String roles = optStr(c.get("roles"));        // "ROLE_USER,ROLE_ADMIN" 형태 또는 null
-        String sid   = optStr(c.get("sid"));          // 선택 클레임
+        String email = optStr(c.get("email")); // optional
+        String roles = optStr(c.get("roles")); // "ROLE_USER,ROLE_ADMIN"
+        String sid   = optStr(c.get("sid"));   // optional
 
         if (!StringUtils.hasText(uid)) {
             log.warn("[JWT] required claim 'uid' missing. claims={}", c);
@@ -97,12 +146,11 @@ public class TokenProvider {
         String username = StringUtils.hasText(email) ? email : uid;
 
         UserDetails principal = User.withUsername(username)
-                .password("")                 // 비밀번호는 사용 안 함
-                .authorities(authorities)     // List<GrantedAuthority>
+                .password("") // not used
+                .authorities(authorities)
                 .build();
 
-        UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(principal, token, authorities);
+        var auth = new UsernamePasswordAuthenticationToken(principal, token, authorities);
 
         Map<String, Object> details = new HashMap<>();
         details.put("uid", uid);
@@ -114,13 +162,10 @@ public class TokenProvider {
         return auth;
     }
 
-    public Map<String, Object> createTokens(Long userId,
-                                            String email,
-                                            Collection<String> roles,
-                                            String sid) {
+    // ── Issue Tokens ───────────────────────────────────────────────────
+    public Map<String, Object> createTokens(Long userId, String email, Collection<String> roles, String sid) {
         String access  = createAccess(userId, email, joinRoles(roles), sid);
         String refresh = createRefresh(userId, sid);
-
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("access_token", access);
         out.put("refresh_token", refresh);
@@ -165,45 +210,5 @@ public class TokenProvider {
         return b.signWith(refreshKey, SignatureAlgorithm.HS256).compact();
     }
 
-    public String createRefresh(Long userId) {
-        return createRefresh(userId, null);
-    }
-
-    private boolean validate(String token, JwtParser parser, String typ) {
-        try {
-            parser.parseClaimsJws(token);
-            return true;
-        } catch (ExpiredJwtException e) {
-            log.warn("{} token expired: {}", typ, e.getMessage());
-        } catch (JwtException | IllegalArgumentException e) {
-            log.warn("Invalid {} token: {}", typ, e.getMessage());
-        }
-        return false;
-    }
-
-    private static String joinRoles(Collection<String> roles) {
-        if (roles == null || roles.isEmpty()) return null;
-        return roles.stream()
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.joining(","));
-    }
-
-    private static String optStr(Object v) {
-        return v == null ? null : v.toString();
-    }
-
-    private static Key hmacKey(String secret) {
-        byte[] bytes;
-        try {
-            bytes = Base64.getDecoder().decode(secret.trim());
-        } catch (IllegalArgumentException e) { // not base64
-            bytes = secret.getBytes(StandardCharsets.UTF_8);
-        }
-        if (bytes.length < 32) {
-            bytes = Arrays.copyOf(bytes, 32); // 간단 패딩 (운영에선 강한 키 사용 권장)
-        }
-        return Keys.hmacShaKeyFor(bytes);
-    }
+    public String createRefresh(Long userId) { return createRefresh(userId, null); }
 }

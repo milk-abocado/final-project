@@ -21,8 +21,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final TokenProvider tokenProvider; // 프로젝트의 실제 구현
+    private final TokenProvider tokenProvider;
 
+    // 인증을 건너뛸 공개 경로들 (permitAll 과 일치시키기)
     private static final List<String> SKIP_PATHS = List.of(
             "/auth/signup",
             "/auth/login",
@@ -47,19 +48,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        String auth = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-        if (auth == null || !auth.startsWith("Bearer ")) {
-            chain.doFilter(request, response);
-            return;
+        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+        String token = TokenProvider.stripBearer(header);
+
+        // 헤더 유무/원문 peek
+        String headPeek = header == null ? "(null)"
+                : (header.length() > 25 ? header.substring(0, 25) + "..." : header);
+        log.info("[JWT] hdr? {} raw='{}' uri={}", header != null, headPeek, request.getRequestURI());
+
+        if (header != null && token == null) {
+            log.info("[JWT] Authorization 존재하지만 Bearer 형식 아님. uri={}", request.getRequestURI());
         }
 
-        String token = auth.substring(7);
-        if (tokenProvider.validateAccessToken(token)) {
-            Authentication authentication = tokenProvider.getAuthenticationFromAccess(token);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        try {
+            if (token != null) {
+                String peek = token.length() > 10
+                        ? token.substring(0, 10) + "..." + token.substring(token.length() - 10)
+                        : token;
+                log.info("[JWT] validate start: uri={}, token.peek={}", request.getRequestURI(), peek);
+
+                boolean ok = tokenProvider.validateAccessToken(token); // ← 여기서 원인별 로그가 남습니다
+                log.info("[JWT] validate result: {}", ok);
+
+                if (ok) {
+                    Authentication authentication = tokenProvider.getAuthenticationFromAccess(token);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.info("[JWT] OK -> name={}, details={}", authentication.getName(), authentication.getDetails());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[JWT] invalid ({}): {}", request.getRequestURI(), e.getMessage());
+            SecurityContextHolder.clearContext();
         }
 
         chain.doFilter(request, response);
-    }
-}
+    }}

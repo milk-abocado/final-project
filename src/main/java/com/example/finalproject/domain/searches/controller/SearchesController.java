@@ -25,7 +25,6 @@ public class SearchesController {
     @PostMapping
     public ResponseEntity<SearchesResponseDto> create(
             @RequestBody SearchesRequestDto request,
-            // @RequestHeader Long userId 임시 헤더일 경우
             @AuthenticationPrincipal CurrentUser userDetails // 로그인 유저일 경우
     ) throws BadRequestException {
         request.setUserId(userDetails.getId());

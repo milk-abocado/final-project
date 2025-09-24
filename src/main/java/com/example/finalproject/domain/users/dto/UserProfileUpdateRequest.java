@@ -18,7 +18,7 @@ public class UserProfileUpdateRequest {
     )
     private String phoneNumber;
 
-    // ✅ 주소 필드
+    //  주소 필드
     @Size(max = 255)
     private String address;
 

@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.auth.service;
 
+import com.example.finalproject.config.CustomUserPrincipal;
 import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -17,18 +19,33 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        var u = usersRepository.findByEmail(email)
+        // 이메일 정규화
+        String norm = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+
+        var u = usersRepository
+                // deleted 플래그가 있으면 findByEmailIgnoreCaseAndDeletedFalse 로 교체
+                .findByEmailIgnoreCase(norm)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
-        // 권한 매핑은 프로젝트에 맞게 변경(예: u.getRole(), u.getRoles() 등)
-        // 기본값으로 ROLE_USER 하나만 부여(필요 시 수정)
-        var authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        // ROLE 매핑 (예: USER → ROLE_USER)
+        String roleName = u.getRole() != null ? "ROLE_" + u.getRole().name() : "ROLE_USER";
+        var authorities = List.of(new SimpleGrantedAuthority(roleName));
 
-        return new org.springframework.security.core.userdetails.User(
-                u.getEmail(),          // principal(=username)
-                u.getPassword(),       // 반드시 인코딩된 해시
-                true, true, true, true,
-                authorities
+        // enabled/locked 등은 엔티티 상황에 맞게
+        boolean enabled = true;
+        boolean accountNonExpired = true;
+        boolean accountNonLocked = true;
+        boolean credentialsNonExpired = true;
+
+        return new CustomUserPrincipal(
+                u.getId(),
+                u.getEmail(),
+                u.getPassword(),
+                authorities,
+                enabled,
+                accountNonExpired,
+                accountNonLocked,
+                credentialsNonExpired
         );
     }
 }
