@@ -238,6 +238,19 @@ public class OrdersService {
 
         // 상태 : COMPLETED(배달 완료)시 사장님도 배달 완료 알림 받도록 구현
         if (status == Orders.Status.COMPLETED) {
+
+            Users user = order.getUser();
+
+            // 포인트 적립 (주문 금액의 5%)
+            int earnedPoints = (int) (order.getTotalPrice() * 0.05);
+
+            PointsDtos.EarnRequest earnRequest = new PointsDtos.EarnRequest();
+            earnRequest.setAmount(earnedPoints);
+            earnRequest.setReason("주문 완료 포인트 적립");
+
+            pointsService.earnPoints(user, earnRequest);
+
+            // 사장님 알림
             slackService.sendOwnerMessage("[사장님 알림] 배달이 완료되었습니다.");
         }
 
