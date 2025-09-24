@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS `images` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 -- 2) 사용자(Users)
 CREATE TABLE users (
-
     id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
     email               VARCHAR(100) UNIQUE            NOT NULL,
     password            VARCHAR(255)                   NOT NULL,
@@ -337,3 +336,6 @@ ALTER TABLE notifications MODIFY COLUMN user_id BIGINT NULL;
 ALTER TABLE notifications ADD COLUMN status ENUM('SUCCESS','FAILED') NOT NULL;
 ALTER TABLE notifications MODIFY COLUMN type ENUM('USER','ALL') NOT NULL;
 ALTER TABLE notifications ADD COLUMN error_message VARCHAR(500);
+
+ALTER TABLE users ADD COLUMN address_detail VARCHAR(255);
+ALTER TABLE users ADD COLUMN zip_code VARCHAR(10);
