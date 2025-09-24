@@ -9,9 +9,11 @@ import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -55,8 +57,9 @@ public class PasswordResetService {
         }
 
         // 유저가 존재할 때만 실제 코드 저장/발송 (없어도 항상 같은 응답을 주어 정보 노출 방지)
-        Optional<Users> maybe = usersRepository.findByEmail(email);
+        Optional<Users> maybe = usersRepository.findByEmailIgnoreCase(email); // ★ repo 메서드
         if (maybe.isPresent()) {
+
             String code = genCode();
             redis.opsForValue().set(codeKey(email), code, CODE_TTL);
             redis.delete(triesKey(email));
@@ -102,8 +105,8 @@ public class PasswordResetService {
             throw new IllegalArgumentException("코드가 유효하지 않거나 만료되었습니다.");
         }
 
-        Users user = usersRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("계정을 찾을 수 없습니다."));
+        Users user = usersRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "가입된 이메일이 아닙니다."));
         user.changePassword(passwordEncoder.encode(req.newPassword()));
         usersRepository.save(user);
 
@@ -123,7 +126,7 @@ public class PasswordResetService {
             throw new IllegalArgumentException("PASSWORD_MISMATCH");
         }
 
-        Users user = usersRepository.findByEmail(email)
+        Users user = usersRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
 
         if (!passwordEncoder.matches(req.oldPassword(), user.getPassword())) {
@@ -152,7 +155,7 @@ public class PasswordResetService {
         }
 
         // 3) 사용자 조회 & 옛 비밀번호 검사
-        Users user = usersRepository.findByEmail(email)
+        Users user = usersRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
 
         if (!passwordEncoder.matches(req.oldPassword(), user.getPassword())) {

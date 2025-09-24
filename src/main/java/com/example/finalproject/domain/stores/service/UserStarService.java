@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -136,8 +137,9 @@ public class UserStarService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();  // 이메일 주소를 가져옵니다.
 
-        // 이메일을 사용해 사용자 정보 가져오기
-        Users user = usersRepo.findByEmail(email)
+        // 이메일을 사용해 사용자 정보 가져오기 (대소문자 무시 + null 안전)
+        String norm = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+        Users user = usersRepo.findByEmailIgnoreCase(norm)
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
 
         // USER만 즐겨찾기 기능을 사용할 수 있도록 설정

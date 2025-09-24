@@ -106,7 +106,7 @@ public class AuthService {
 
      // 로그인
      public Map<String, Object> login(LoginRequest req) {
-        Users u = userRepository.findByEmailAndDeletedFalse(req.getEmail())
+        Users u = userRepository.findByEmailIgnoreCaseAndDeletedFalse(req.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("invalid login"));
         if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
             throw new IllegalArgumentException("invalid login");
@@ -207,7 +207,7 @@ public class AuthService {
                     ? info.getEmail()
                     : info.getProvider() + "_" + info.getProviderId() + "@social.local";
 
-            u = userRepository.findByEmailAndDeletedFalse(email).orElseGet(() ->
+            u = userRepository.findByEmailIgnoreCaseAndDeletedFalse(email).orElseGet(() ->
                     userRepository.save(Users.builder()
                             .email(email)
                             .password(passwordEncoder.encode(UUID.randomUUID().toString()))

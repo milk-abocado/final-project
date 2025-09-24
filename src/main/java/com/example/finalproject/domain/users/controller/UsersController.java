@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.users.controller;
 
+import com.example.finalproject.config.CustomUserPrincipal;
 import com.example.finalproject.domain.users.dto.UserDetailResponse;
 import com.example.finalproject.domain.users.dto.UserProfileUpdateRequest;
 import com.example.finalproject.domain.users.dto.UserSummaryResponse;
@@ -41,19 +42,20 @@ public class UsersController {
         return ResponseEntity.ok(UserDetailResponse.from(user));
     }
 
-    // 본인만 프로필 수정 가능 (인증 주체의 userId와 path {id} 비교)
-    @PatchMapping("/{id}/profile")
-    public ResponseEntity<UserDetailResponse> updateProfile(
-            @PathVariable Long id,
-            @Valid @RequestBody UserProfileUpdateRequest request,
-            // CustomUserDetails에 getUserId()가 있다고 가정하고 SpEL로 바로 추출
-            @AuthenticationPrincipal(expression = "userId") Long authUserId
+    // 본인만 프로필 수정 가능 (인증 주체의 userEmail와 path {Email} 비교)
+    @PatchMapping("/{email:.+}/profile")
+    public ResponseEntity<?> updateProfileByEmail(
+            @PathVariable String email,
+            @Valid @RequestBody UserProfileUpdateRequest req,
+            @AuthenticationPrincipal(expression = "username") String authEmail
     ) {
-        if (authUserId == null || !id.equals(authUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인 프로필만 수정할 수 있습니다.");
+        if (authEmail == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
-
-        var updated = usersService.updateProfile(id, request);
-        return ResponseEntity.ok(updated);
+        if (!email.equalsIgnoreCase(authEmail)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인만 수정할 수 있습니다.");
+        }
+        return ResponseEntity.ok(usersService.updateProfileByEmail(email, req));
     }
 }
+
