@@ -26,6 +26,7 @@ public class ElasticsearchInitializer implements CommandLineRunner {
                             .properties("keyword", p -> p.searchAsYouType(s -> s))
                             .properties("region", p -> p.keyword(k -> k))
                             .properties("count", p -> p.integer(i -> i))
+                            .properties("rank", p -> p.integer(i -> i))
                             .properties("created_at", p -> p.date(d -> d))
                     )
             );
