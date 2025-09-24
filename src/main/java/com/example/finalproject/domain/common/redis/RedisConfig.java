@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.common.redis;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.*;
 import org.springframework.data.redis.connection.*;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
