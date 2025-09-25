@@ -8,14 +8,12 @@ import com.example.finalproject.domain.searches.repository.SearchesRepository;
 import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -161,11 +159,14 @@ public class SearchesService {
     private final StringRedisTemplate redisTemplate;
 
     // 검색 키워드와 지역별 count 증가
-    public void recordSearch(String keyword, String region) {
+    public void recordSearch(String keyword, String region, Long userId) {
         // DB 저장
         Searches search = new Searches();
         search.setRegion(region);
         search.setKeyword(keyword);
+        search.setUserId(userId);
+        search.setCount(1);
+
         searchesRepository.save(search);
 
         //Redis 증가
