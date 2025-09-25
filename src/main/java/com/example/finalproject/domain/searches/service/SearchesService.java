@@ -6,7 +6,9 @@ import com.example.finalproject.domain.searches.entity.Searches;
 import com.example.finalproject.domain.searches.exception.SearchesException;
 import com.example.finalproject.domain.searches.repository.SearchesRepository;
 import com.example.finalproject.domain.users.repository.UsersRepository;
+import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,15 +18,10 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class SearchesService {
     private final SearchesRepository searchesRepository;
     private final UsersRepository usersRepository;
-
-    public SearchesService(SearchesRepository searchesRepository,
-                           UsersRepository usersRepository) {
-        this.searchesRepository = searchesRepository;
-        this.usersRepository = usersRepository;
-    }
 
     public SearchesResponseDto saveOrUpdate(SearchesRequestDto request) throws BadRequestException {
         //400: keyword/region 누락, 길이 초과
@@ -52,7 +49,7 @@ public class SearchesService {
         if (searches != null) {
             //동일 조합 있으면 count +1
             searches.setCount(searches.getCount() + 1);
-        }  else {
+        } else {
             //없으면 새로 생성
             searches = Searches.builder()
                     .keyword(request.getKeyword())
@@ -141,6 +138,7 @@ public class SearchesService {
                 .userId(searches.getUserId())
                 .build();
     }
+
     @Transactional
     public void deleteSearches(Long userId, Long id) {
         if (userId == null) {
@@ -155,5 +153,24 @@ public class SearchesService {
         }
 
         searchesRepository.delete(searches);
+    }
+
+    //인기 검색어: 사용자 검색 처리(Redis 카운트 증가)
+    private final StringRedisTemplate redisTemplate;
+
+    // 검색 키워드와 지역별 count 증가
+    public void recordSearch(String keyword, String region, Long userId) {
+        // DB 저장
+        Searches search = new Searches();
+        search.setRegion(region);
+        search.setKeyword(keyword);
+        search.setUserId(userId);
+        search.setCount(1);
+
+        searchesRepository.save(search);
+
+        //Redis 증가
+        String redisKey = "search_count:" + region + ":" + keyword;
+        redisTemplate.opsForValue().increment(redisKey, 1);
     }
 }

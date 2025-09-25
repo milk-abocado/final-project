@@ -1,7 +1,5 @@
 package com.example.finalproject.domain.stores.service;
 
-import com.example.finalproject.domain.stores.auth.Role;
-import com.example.finalproject.domain.stores.auth.SecurityUtil;
 import com.example.finalproject.domain.stores.dto.request.StoresRequest;
 import com.example.finalproject.domain.stores.dto.response.StoresResponse;
 import com.example.finalproject.domain.stores.entity.Stores;
@@ -9,13 +7,20 @@ import com.example.finalproject.domain.stores.exception.ApiException;
 import com.example.finalproject.domain.stores.exception.ErrorCode;
 import com.example.finalproject.domain.stores.geo.GeocodingPort;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
+import com.example.finalproject.domain.users.UserRole;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalTime;
+import java.util.Collection;
+import java.util.Locale;
 
 /**
  * StoresService
@@ -29,7 +34,6 @@ public class StoresService {
 
     private final StoresRepository storesRepository; // 가게 저장소
     private final UsersRepository usersRepository;   // 사용자 저장소 (OWNER 확인)
-    private final SecurityUtil security;             // 현재 사용자/권한 조회
     private final GeocodingPort geocoding;           // 주소 → 좌표 변환 포트
 
     /**
@@ -42,29 +46,47 @@ public class StoresService {
     @Transactional
     public StoresResponse create(StoresRequest req) {
         // 1) 인증/권한 확인
-        Long ownerId = security.currentUserId();
-        if (security.currentRole() != Role.OWNER) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // 인증 정보에서 Principal을 가져와서 UserDetails 객체로 캐스팅
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+        // 사용자 정보를 사용하여 이메일 가져오기
+        String username = userDetails.getUsername();  // 여기서 email을 가져옴
+
+        // 권한 확인
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+        String roleString = authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .orElse(null);
+
+        UserRole currentRole = UserRole.valueOf(roleString.replace("ROLE_", "")); // "ROLE_" 제거 후 변환
+
+        // OWNER 권한 확인
+        if (currentRole != UserRole.OWNER) {
             throw new ApiException(ErrorCode.FORBIDDEN, "가게 생성은 OWNER만 가능합니다.");
         }
 
-        // 2) 공통 입력 검증 (자정 넘김 허용, 동일 시각 금지)
+        // 2) OWNER 존재 검증 (이메일로 사용자 조회)
+        String norm = username == null ? null : username.trim().toLowerCase(Locale.ROOT);
+        Users owner = usersRepository.findByEmailIgnoreCase(norm)
+                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "OWNER 계정이 존재하지 않습니다."));
+
+        // 3) 공통 입력 검증 (자정 넘김 허용, 동일 시각 금지)
         validateCommon(req);
 
-        // 3) 문자열 정리
+        // 4) 문자열 정리
         String name = req.getName().trim();
         String address = req.getAddress().trim();
 
-        // 4) 주소 중복 검증 (운영 중 & 미폐업과만 충돌 금지)
+        // 5) 주소 중복 검증 (운영 중 & 미폐업과만 충돌 금지)
         if (storesRepository.existsByAddressAndActiveTrueAndRetiredAtIsNull(address)) {
             throw new ApiException(ErrorCode.CONFLICT, "해당 주소로 운영 중인 가게가 이미 존재합니다.");
         }
 
-        // 5) OWNER 존재 검증
-        Users owner = usersRepository.findById(ownerId)
-                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "OWNER 계정이 존재하지 않습니다."));
-
         // 6) 활성 가게 수 제한 (예: 최대 3개)
-        long activeCount = storesRepository.countByOwner_IdAndActiveTrue(ownerId);
+        long activeCount = storesRepository.countByOwner_IdAndActiveTrue(owner.getId());
         if (activeCount >= 3) {
             throw new ApiException(ErrorCode.LIMIT_EXCEEDED, "OWNER의 운영 가게 수는 최대 3개입니다.");
         }
@@ -105,16 +127,28 @@ public class StoresService {
     @Transactional
     public StoresResponse update(Long storeId, StoresRequest req) {
         // 1) 권한 확인
-        Long ownerId = security.currentUserId();
-        if (security.currentRole() != Role.OWNER)
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();  // Get email (username)
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+        // 권한 확인
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+        String roleString = authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .orElse(null);
+
+        UserRole currentRole = UserRole.valueOf(roleString.replace("ROLE_", "")); // "ROLE_" 제거 후 변환
+        if (currentRole != UserRole.OWNER) {
             throw new ApiException(ErrorCode.FORBIDDEN, "가게 수정은 OWNER만 가능합니다.");
+        }
 
         // 2) 대상 가게 조회
         Stores store = storesRepository.findById(storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
 
         // 3) 본인 소유 검증
-        if (!store.getOwner().getId().equals(ownerId)) {
+        if (!store.getOwner().getEmail().equals(username)) {
             throw new ApiException(ErrorCode.FORBIDDEN, "본인이 소유한 가게만 수정할 수 있습니다.");
         }
 
@@ -125,7 +159,7 @@ public class StoresService {
         String newName = req.getName().trim();
         String newAddress = req.getAddress().trim();
 
-        // 6) 주소 중복(자기 자신 제외) — 운영 중 & 미폐업과만 충돌 금지
+        // 6) 주소 중복 검증(자기 자신 제외)
         if (storesRepository.existsByAddressAndActiveTrueAndRetiredAtIsNullAndIdNot(newAddress, storeId)) {
             throw new ApiException(ErrorCode.CONFLICT, "해당 주소로 운영 중인 가게가 이미 존재합니다.");
         }

@@ -1,12 +1,19 @@
 package com.example.finalproject.domain.points.controller;
 
+import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.points.dto.PointsDtos;
 import com.example.finalproject.domain.points.service.PointsService;
+import com.example.finalproject.domain.users.UserRole;
 import com.example.finalproject.domain.users.entity.Users;
+import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/points")
@@ -14,37 +21,92 @@ import org.springframework.web.bind.annotation.*;
 public class PointsController {
 
     private final PointsService pointsService;
+    private final UsersRepository usersRepository;
 
-    // 포인트 적립
+    private Long verifiedUser(Authentication authentication) {
+
+        // 로그인한 사용자의 userId 가져오기
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
+
+        // OWNER 권한 접근 방지 (대소문자 무시)
+        if (authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r) // ROLE_ 제거
+                .anyMatch(r -> r.equalsIgnoreCase("OWNER"))) {
+            throw new AccessDeniedException("OWNER는 포인트에 접근할 수 없습니다.");
+        }
+        return userId;
+    }
+
+    private Long verifiedADMIN(Authentication authentication) {
+
+        // 로그인한 사용자의 userId 가져오기
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
+
+        // OWNER 권한 접근 방지 (대소문자 무시)
+        if (authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r) // ROLE_ 제거
+                .anyMatch(r -> r.equalsIgnoreCase("OWNER"))) {
+            throw new AccessDeniedException("OWNER는 포인트에 접근할 수 없습니다.");
+        }
+
+        if (authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.startsWith("ROLE_") ? r.substring(5) : r) // ROLE_ 제거
+                .anyMatch(r -> r.equalsIgnoreCase("USER"))) {
+            throw new AccessDeniedException("USER는 접근할 수 없습니다.");
+        }
+        return userId;
+    }
+
+    // 포인트 적립 (관리자 전용)
     @PostMapping("/earn")
     public ResponseEntity<PointsDtos.PointResponse> earnPoints(
-            @RequestBody PointsDtos.EarnRequest request
-    ) {
-        //  임시: 더미 유저 생성 (추후 로그인 사용자로 교체)
-        Users dummyUser = new Users();
-        dummyUser.setId(request.getUserId());
+            @RequestBody PointsDtos.EarnRequest request,
+            Authentication authentication
 
-        PointsDtos.PointResponse response = pointsService.earnPoints(dummyUser, request);
+    ) {
+        Long userId = verifiedADMIN(authentication);
+        Users user = usersRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("해당하는 유저가 없습니다."));
+
+        PointsDtos.PointResponse response = pointsService.earnPoints(user, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
 
     //포인트 사용
     @PostMapping("/use")
     public ResponseEntity<PointsDtos.PointResponse> usePoints(
-            @RequestBody PointsDtos.UseRequest request
+            @RequestBody PointsDtos.UseRequest request,
+            Authentication authentication
     ) {
-        Users dummyUser = new Users();
-        dummyUser.setId(request.getUserId());
+        Long userId = verifiedUser(authentication);
+        Users user = usersRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("해당하는 유저가 없습니다."));
 
-        PointsDtos.PointResponse response = pointsService.usePoints(dummyUser, request);
+        PointsDtos.PointResponse response = pointsService.usePoints(user, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     //포인트 조회
     @GetMapping("/{userId}")
     public ResponseEntity<PointsDtos.UserPointsResponse> getUserPoints(
-            @PathVariable Long userId
+            @PathVariable Long userId,
+            Authentication authentication
     ) {
+        Long checkUserId = verifiedUser(authentication);
+        Users user = usersRepository.findById(checkUserId)
+                .orElseThrow(() -> new IllegalArgumentException("해당하는 유저가 없습니다."));
+
+        if (user.getRole() == UserRole.USER && !user.getId().equals(userId)) {
+             throw new AccessDeniedException("본인의 포인트만 조회할 수 있습니다.");
+        }
         PointsDtos.UserPointsResponse response = pointsService.getUserPoints(userId);
         return ResponseEntity.ok(response);
     }

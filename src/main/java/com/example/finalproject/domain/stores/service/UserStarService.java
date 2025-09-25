@@ -1,7 +1,5 @@
 package com.example.finalproject.domain.stores.service;
 
-import com.example.finalproject.domain.stores.auth.Role;
-import com.example.finalproject.domain.stores.auth.SecurityUtil;
 import com.example.finalproject.domain.stores.dto.response.StarredStoreResponse;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.entity.UserStar;
@@ -9,13 +7,20 @@ import com.example.finalproject.domain.stores.exception.ApiException;
 import com.example.finalproject.domain.stores.exception.ErrorCode;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.stores.repository.UserStarRepository;
+import com.example.finalproject.domain.users.UserRole;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 /**
  * UserStarService
@@ -34,7 +39,6 @@ public class UserStarService {
     private final UserStarRepository starRepo;
     private final StoresRepository storesRepo;
     private final UsersRepository usersRepo;
-    private final SecurityUtil security;
 
     /**
      * 즐겨찾기 등록
@@ -64,6 +68,11 @@ public class UserStarService {
         // 연관 엔티티 로드
         Stores store = storesRepo.findById(storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
+
+        // 가게가 폐업 상태인지 확인
+        if (!store.isActive()) { // 'isActive()' 메서드가 가게가 폐업했는지 확인
+            throw new ApiException(ErrorCode.FORBIDDEN, "폐업한 가게는 즐겨찾기할 수 없습니다.");
+        }
 
         Users user = usersRepo.findById(uid)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 사용자입니다."));
@@ -125,13 +134,28 @@ public class UserStarService {
      * 필요 시 권한 정책(ADMIN 허용/차단 등)도 여기에서 통일 관리
      */
     private Long currentUserIdOrThrow() {
-        Long uid = security.currentUserId();
-        if (uid == null) throw new ApiException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
-        // 사용자 전용 기능으로 제한
-        if (security.currentRole() == Role.ADMIN) {
-            // ADMIN 접근 정책이 필요하면 여기에서 처리 (허용/차단 선택)
-            throw new ApiException(ErrorCode.FORBIDDEN, "ADMIN은 사용할 수 없습니다.");
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();  // 이메일 주소를 가져옵니다.
+
+        // 이메일을 사용해 사용자 정보 가져오기 (대소문자 무시 + null 안전)
+        String norm = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+        Users user = usersRepo.findByEmailIgnoreCase(norm)
+                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
+
+        // USER만 즐겨찾기 기능을 사용할 수 있도록 설정
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+        String roleString = authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .orElse(null);
+
+        UserRole currentRole = UserRole.valueOf(Objects.requireNonNull(roleString).replace("ROLE_", "")); // "ROLE_" 부분 제거 후 변환
+
+        // USER 권한만 가능
+        if (currentRole != UserRole.USER) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "즐겨찾기 기능은 USER만 가능합니다.");
         }
-        return uid;
+
+        return user.getId();  // 사용자의 ID를 반환합니다.
     }
 }

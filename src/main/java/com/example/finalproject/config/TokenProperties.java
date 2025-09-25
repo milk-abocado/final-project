@@ -3,6 +3,7 @@ package com.example.finalproject.config;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -12,36 +13,13 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "jwt")
 public class TokenProperties {
+    private String issuer;
+    private Part access;
+    private Part refresh;
 
-    /** 토큰 발급자(issuer) */
-    @NotBlank
-    private String issuer = "finalproject";
-
-    /** 액세스 토큰 설정 */
-    @Valid
-    private Access access = new Access();
-
-    /** 리프레시 토큰 설정 */
-    @Valid
-    private Refresh refresh = new Refresh();
-
-    @Getter @Setter
-    public static class Access {
-        /** Base64 인코딩된 HS256 시크릿 */
-        @NotBlank
-        private String secret;
-        /** 유효기간(초) */
-        @Positive
-        private long ttlSeconds = 3600;
-    }
-
-    @Getter @Setter
-    public static class Refresh {
-        /** Base64 인코딩된 HS256 시크릿 */
-        @NotBlank
-        private String secret;
-        /** 유효기간(초) */
-        @Positive
-        private long ttlSeconds = 604800;
+    @Data
+    public static class Part {
+        private String secret;     // yml: jwt.access.secret
+        private long ttlSeconds;   // yml: jwt.access.ttl-seconds  (relaxed binding OK)
     }
 }

@@ -4,19 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import jakarta.servlet.http.HttpServletResponse; // ★ jakarta 로 교체
-import java.io.IOException;
 
 @Configuration
 @RequiredArgsConstructor
@@ -24,55 +15,91 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    // 완전 공개 (모든 HTTP 메서드 허용) - 필요한 것만 한정! (/auth/** 전체 공개 금지)
+    private static final String[] PUBLIC_ANY = {
+            "/auth/signup",
+            "/auth/login",
+            "/oauth/**",
+            "/public/**",
+            "/auth/password/reset/code",
+            "/auth/password/reset/verify",
+            "/auth/password/reset/confirm"
+    };
+
+    // 읽기(GET)만 공개
+    private static final String[] PUBLIC_GET = {
+            "/searches/**",
+            "/stores/**",
+            "/menus/**",
+            "/reviews/**",
+            "/points/**",
+            "/coupons/**",
+            "/image/**",
+            "/users/**",
+            "/slack/**",
+            "/carts/**",
+            "/orders/**",
+            "/files/**",
+            "/images/*/*"
+    };
+
+    // POST만 공개 (정책에 맞게 유지/조정)
+    private static final String[] PUBLIC_POST = {
+            "/searches/**",
+            "/image/**",
+            "/slack/**",
+            "/files/**",
+            "/s3/upload",
+            "/images/*/*/presign",
+            "/images/*/*/confirm"
+    };
+
+
+     //private static final String[] PUBLIC_PATCH = {
+     //   "/users/*/profile"
+     //};
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(c -> c.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/login", "/signup","/oauth/").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/public/**").permitAll()
+                        // 완전 공개
+                        .requestMatchers(PUBLIC_ANY).permitAll()
+
+                        // GET 공개
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
+
+                        // POST 공개
+                        .requestMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
+
+                        // PATCH 공개 (현재는 주석: 프로필 수정은 인증 필요 권장)
+                        //.requestMatchers(HttpMethod.PATCH, PUBLIC_PATCH).permitAll()
+
+                        // 에러/프리플라이트
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // 나머지 모두 인증 필요
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(authenticationEntryPoint())
-                        .accessDeniedHandler(accessDeniedHandler())
-                );
-
-        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                        .authenticationEntryPoint((req, res, e) -> {
+                            res.setHeader("WWW-Authenticate", "Bearer");
+                            res.setStatus(401);
+                            res.setContentType("application/json;charset=UTF-8");
+                            res.getWriter().write("{\"error\":\"unauthorized\",\"message\":\"Authentication required\"}");
+                        })
+                        .accessDeniedHandler((req, res, e) -> {
+                            res.setStatus(403);
+                            res.setContentType("application/json;charset=UTF-8");
+                            res.getWriter().write("{\"error\":\"forbidden\",\"message\":\"Access denied\"}");
+                        })
+                )
+                // UsernamePasswordAuthenticationFilter 이전에 JWT 필터 추가
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
-        return cfg.getAuthenticationManager();
-    }
-
-    @Bean
-    public AuthenticationEntryPoint authenticationEntryPoint() {
-        return (request, response, authException) -> {
-            // 선택: 401 응답에 WWW-Authenticate 헤더 추가
-            response.setHeader("WWW-Authenticate", "Bearer");
-            writeJson(response, 401,
-                    "{\"error\":\"unauthorized\",\"message\":\"Authentication required\"}");
-        };
-    }
-
-    @Bean
-    public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, accessDeniedException) -> writeJson(response, 403,
-                "{\"error\":\"forbidden\",\"message\":\"Access denied\"}");
-    }
-
-    private void writeJson(HttpServletResponse response, int status, String body) throws IOException {
-        // 이미 커밋된 응답이면 더 이상 쓰지 않음(예외 방지)
-        if (response.isCommitted()) return;
-
-        response.setStatus(status);
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(body);
-        response.getWriter().flush();
     }
 }
