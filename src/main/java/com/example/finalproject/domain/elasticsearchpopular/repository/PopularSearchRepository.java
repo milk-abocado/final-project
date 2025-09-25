@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface PopularSearchRepository extends JpaRepository<PopularSearch, Long> {
-    List<PopularSearch> findTop10ByRegionOrderByCountDesc(String region);
+     List<PopularSearch> findTop10ByRegionOrderByCountDesc(String region);
 }

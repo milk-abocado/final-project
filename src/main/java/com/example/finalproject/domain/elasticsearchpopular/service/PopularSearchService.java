@@ -5,6 +5,7 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
+import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -60,6 +61,7 @@ public class PopularSearchService {
     }
 
     public List<PopularSearch> getPopularKeywords(String region) {
-        return List.of();
+        return popularSearchRepository.findTop10ByRegionOrderByCountDesc(region);
     }
 }
+
