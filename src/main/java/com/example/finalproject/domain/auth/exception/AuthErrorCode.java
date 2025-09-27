@@ -11,6 +11,12 @@ public enum AuthErrorCode {
     // 로그인
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일/비밀번호가 일치하지 않습니다."),
     ACCOUNT_NOT_FOUND(HttpStatus.FORBIDDEN, "사용자 정보가 없거나 사용할 수 없습니다."),
+    LOGIN_IN_PROGRESS(HttpStatus.CONFLICT, "이미 로그인 되었습니다."),
+    SESSION_EXISTS(HttpStatus.CONFLICT, "이미 로그인된 세션이 있습니다. 먼저 로그아웃하세요."),
+
+    //로그아웃
+    UNAUTHORIZED(HttpStatus.CONFLICT,"이미 로그아웃됐습니다."),
+
 
     // 토큰 갱신
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "잘못된 리프레시 토큰"),
