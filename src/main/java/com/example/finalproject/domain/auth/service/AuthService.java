@@ -113,7 +113,7 @@ public class AuthService {
 
         try {
             Users u = userRepository.findByEmailIgnoreCaseAndDeletedFalse(emailLower)
-                    .orElseThrow(() -> AuthApiException.of(AuthErrorCode.INVALID_CREDENTIALS));
+                    .orElseThrow(() -> AuthApiException.of(AuthErrorCode.UNAUTHORIZED));
             if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
                 throw AuthApiException.of(AuthErrorCode.UNAUTHORIZED);
             }
