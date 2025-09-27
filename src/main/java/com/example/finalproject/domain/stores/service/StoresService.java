@@ -210,9 +210,9 @@ public class StoresService {
         if (open == null || close == null) {
             throw new ApiException(ErrorCode.BAD_REQUEST, "영업 시작/종료 시간은 필수입니다.");
         }
-        // 자정 넘김 허용. 다만 동일 시각(open == close)은 금지
-        if (open.equals(close)) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "오픈 시간과 마감 시간이 동일할 수 없습니다.");
+        // 오픈 시간이 마감 시간과 같거나 ‘마감보다 늦을’ 때 / 다만 동일 시각(open == close)은 금지
+        if (open.equals(close) || open.isAfter(close)) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "오픈 시간이 마감 시간보다 늦거나 동일할 수 없습니다.");
         }
     }
 
