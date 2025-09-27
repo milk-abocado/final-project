@@ -169,6 +169,11 @@ public class OrdersService {
             Menus menu = menusRepository.findById(cartItem.getMenuId())
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
 
+            // 메뉴 상태 체크
+            if (menu.getStatus() != Menus.MenuStatus.ACTIVE) {
+                throw new IllegalStateException("해당 메뉴("+menu.getName()+")는 주문할 수 없습니다.");
+            }
+
             OrderItems orderItem = new OrderItems();
             orderItem.setOrder(order);
             orderItem.setMenu(menu);
@@ -440,9 +445,9 @@ public class OrdersService {
             }
 
             couponResp.setDiscountAmount(discount); // 조회용 할인 금액 세팅
-
             response.setAppliedCoupon(couponResp);
-        } else {
+        }
+        else {
             response.setAppliedCoupon(null);
         }
 
