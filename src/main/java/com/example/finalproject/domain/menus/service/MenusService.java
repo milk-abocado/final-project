@@ -449,32 +449,4 @@ public class MenusService {
 
         choicesRepository.delete(choice);
     }
-
-    // 옵션 선택지 전체 삭제
-    @Transactional
-    public void deleteAllOptionChoices(Long menuId, Long optionGroupId, Authentication authentication, Long storeId) {
-        // 권한 체크
-        verifiedUser(authentication, storeId);
-
-        MenuOptions option = optionsRepository.findById(optionGroupId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 선택지입니다."));
-
-        Menus menu = option.getMenu();
-        if (!menu.getStore().getId().equals(storeId)) {
-            throw new IllegalArgumentException("해당 가게의 메뉴가 존재하지 않습니다.");
-        }
-
-        if (!option.getMenu().getId().equals(menuId)) {
-            throw new IllegalArgumentException("해당 메뉴의 옵션 그룹이 아닙니다.");
-        }
-
-        if (!option.getId().equals(optionGroupId)) {
-            throw new IllegalArgumentException("해당 메뉴의 선택지가 아닙니다.");
-        }
-
-        List<MenuOptionChoices> choices = choicesRepository.findByGroupId(optionGroupId);
-
-        choicesRepository.deleteAll(choices);
-    }
-
 }

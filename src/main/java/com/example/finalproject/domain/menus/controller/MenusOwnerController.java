@@ -278,24 +278,4 @@ public class MenusOwnerController {
             return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
         }
     }
-
-    // 카테고리 전체 삭제
-    @DeleteMapping("/{menuId}/options/{optionGroupId}/choices")
-    public ResponseEntity<?> deleteAllOptionChoices(
-            Authentication authentication,
-            @PathVariable Long storeId,
-            @PathVariable Long menuId,
-            @PathVariable Long optionGroupId) {
-        try {
-            menusService.deleteAllOptionChoices(menuId, optionGroupId, authentication, storeId);
-            return ResponseEntity.ok("카테고리가 전체 삭제되었습니다.");
-        } catch (AccessDeniedException e) {
-            return str(HttpStatus.FORBIDDEN, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return str(HttpStatus.BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
-        }
-    }
-
 }
