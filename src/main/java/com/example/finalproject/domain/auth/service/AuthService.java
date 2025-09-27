@@ -115,7 +115,7 @@ public class AuthService {
             Users u = userRepository.findByEmailIgnoreCaseAndDeletedFalse(emailLower)
                     .orElseThrow(() -> AuthApiException.of(AuthErrorCode.INVALID_CREDENTIALS));
             if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
-                throw AuthApiException.of(AuthErrorCode.INVALID_CREDENTIALS);
+                throw AuthApiException.of(AuthErrorCode.UNAUTHORIZED);
             }
 
             // ★ 단일 세션: 이미 sid가 있으면 거절
