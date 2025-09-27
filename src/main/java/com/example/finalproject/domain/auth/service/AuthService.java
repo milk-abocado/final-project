@@ -12,9 +12,13 @@ import com.example.finalproject.domain.common.redis.TokenStore;
 import com.example.finalproject.domain.users.UserRole;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
+import com.example.finalproject.domain.auth.exception.AuthApiException;
+import com.example.finalproject.domain.auth.exception.AuthErrorCode;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,16 +61,12 @@ public class AuthService {
     public void sendSignupEmail(EmailRequest req) {
         String code = sixDigitCode();
         codeStore.saveSignupCode(req.getEmail(), code);
-        mailSender.send(
-                req.getEmail(),
-                "Your verification code",
-                "CODE: " + code
-        );
+        mailSender.send(req.getEmail(), "Your verification code", "CODE: " + code);
     }
 
     public Map<String, Object> verifySignupEmail(EmailVerifyRequest req) {
         boolean ok = codeStore.verifySignupCode(req.getEmail(), req.getCode());
-        if (!ok) throw new IllegalArgumentException("invalid code");
+        if (!ok) throw AuthApiException.of(AuthErrorCode.EMAIL_VERIFICATION_INVALID_CODE);
         return Map.of(
                 "verifiedToken", UUID.randomUUID().toString(),
                 "expiresIn", 600
@@ -79,37 +79,34 @@ public class AuthService {
     @Transactional
     public Users signup(SignupRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new IllegalArgumentException("email used");
+            // 409 CONFLICT
+            throw AuthApiException.of(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
         UserRole role = req.getRole() != null ? UserRole.valueOf(req.getRole()) : UserRole.USER;
 
-        // Users 객체 생성 시, 이름과 핸드폰 번호도 저장
         Users u = Users.builder()
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(req.getPassword()))
                 .nickname(req.getNickname())
-                .phoneNumber(req.getPhone_number())  // 핸드폰 번호 설정
-                .name(req.getName())                 // 이름 설정
+                .phoneNumber(req.getPhone_number())
+                .name(req.getName())
                 .role(role)
                 .build();
 
-//        // 수정 전 코드
-//        Users u = Users.builder()
-//                .email(req.getEmail())
-//                .password(passwordEncoder.encode(req.getPassword()))
-//                .nickname(req.getNickname())
-//                .role(UserRole.USER)  // 여기에 USER로 하드코딩되어 있음
-//                .build();
         return userRepository.save(u);
     }
 
-     // 로그인
-     public Map<String, Object> login(LoginRequest req) {
+    // ====================================================================
+    // 로그인
+    // ====================================================================
+    public Map<String, Object> login(LoginRequest req) {
         Users u = userRepository.findByEmailIgnoreCaseAndDeletedFalse(req.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("invalid login"));
+                // 계정 존재 여부를 숨기고 싶다면 INVALID_CREDENTIALS 로 통일
+                .orElseThrow(() -> AuthApiException.of(AuthErrorCode.INVALID_CREDENTIALS));
+
         if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
-            throw new IllegalArgumentException("invalid login");
+            throw AuthApiException.of(AuthErrorCode.INVALID_CREDENTIALS);
         }
 
         // 새 sid 발급 & 보관(중복 로그인 방지)
@@ -134,30 +131,42 @@ public class AuthService {
 
     public Map<String, Object> refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            throw new IllegalArgumentException("INVALID_REFRESH");
+            throw AuthApiException.of(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        // 1) refresh 파싱 → uid, sid
-        Claims claims = tokenProvider.parseRefresh(refreshToken);   // TokenProvider에 구현
+        Claims claims;
+        try {
+            // 1) refresh 파싱 → uid, sid
+            claims = tokenProvider.parseRefresh(refreshToken);
+        } catch (JwtException | IllegalArgumentException e) {
+            // 서명/만료/형식 오류 등은 전부 INVALID_REFRESH_TOKEN 처리
+            throw AuthApiException.of(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
         Long userId = claims.get("uid", Long.class);
         if (userId == null) {
-            userId = Long.parseLong(claims.getSubject()); // 혹시 subject에 보관했을 때 대비
+            try {
+                userId = Long.parseLong(claims.getSubject());
+            } catch (Exception e) {
+                throw AuthApiException.of(AuthErrorCode.INVALID_REFRESH_TOKEN);
+            }
         }
-        String sid = Optional.ofNullable(claims.get("sid"))
-                .map(Object::toString).orElse(null);
+        String sid = Optional.ofNullable(claims.get("sid")).map(Object::toString).orElse(null);
 
         // 2) 저장소에 실제로 보관된 refresh 인지 확인
         if (!tokenStore.isRefreshValid(userId, refreshToken)) {
-            throw new IllegalStateException("INVALID_REFRESH");
+            // 만료/폐기/위조 → 401
+            throw AuthApiException.of(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        // 3) (옵션) 세션 일치성 확인 — 현재 보관된 sid 와 토큰의 sid 가 다르면 중복 로그인으로 간주
+        // 3) 세션 일치성 확인 — 현재 보관된 sid 와 토큰의 sid 가 다르면 거부
         if (sid != null && !sidStore.isRefreshValid(userId, refreshToken)) {
-            throw new IllegalStateException("SESSION_CONFLICT");
+            // Security의 핸들러가 INVALID_ACCESS_TOKEN 으로 매핑함
+            throw new AccessDeniedException("session conflict");
         }
 
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
+                .orElseThrow(() -> AuthApiException.of(AuthErrorCode.ACCOUNT_NOT_FOUND));
 
         // 4) 토큰 회전
         String rolesStr   = user.getRole().name();
@@ -179,10 +188,8 @@ public class AuthService {
     // 로그아웃
     // ====================================================================
     public void logout(String accessToken, Long userId) {
-        // 현재 세션 무효화: 사용자 refresh 제거 + sid 제거
         tokenStore.revokeRefresh(userId);
         sidStore.evict(userId);
-        // (선택) access jti 블랙리스트 처리하려면 TokenProvider에서 jti 추출 로직을 추가해 사용하세요.
     }
 
     // ====================================================================
@@ -190,11 +197,8 @@ public class AuthService {
     // ====================================================================
     @Transactional
     public Map<String, Object> socialLoginByAccessToken(SocialProviderLoginRequest req) {
-        // 1) 소셜 액세스토큰 검증 및 유저 정보 조회
         var info = oAuthService.fetchUser(req.getProvider(), req.getAccessToken());
-        // info: provider, providerId, email(있을수도 없음), nickname(있을수도 없음)
 
-        // 2) 계정 매핑
         Optional<SocialAccount> existing = socialAccountRepository
                 .findByProviderAndProviderId(info.getProvider(), info.getProviderId());
 
@@ -202,7 +206,6 @@ public class AuthService {
         if (existing.isPresent()) {
             u = existing.get().getUser();
         } else {
-            // 최초 로그인: 이메일이 없으면 가짜 이메일 부여
             String email = (info.getEmail() != null && !info.getEmail().isBlank())
                     ? info.getEmail()
                     : info.getProvider() + "_" + info.getProviderId() + "@social.local";
@@ -223,7 +226,6 @@ public class AuthService {
                     .build());
         }
 
-        // 3) sid 저장 후 토큰 발급
         String sid = UUID.randomUUID().toString();
         sidStore.set(u.getId(), sid, tokenProperties.getRefresh().getTtlSeconds());
 

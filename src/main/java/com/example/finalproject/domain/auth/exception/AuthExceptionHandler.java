@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
 
-@RestControllerAdvice(basePackages = "com.example.finalproject.domain.auth")
+@RestControllerAdvice(basePackages = "com.example.finalproject")
 public class AuthExceptionHandler {
 
     @ExceptionHandler(AuthApiException.class)
