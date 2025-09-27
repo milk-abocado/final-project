@@ -38,6 +38,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -77,8 +78,35 @@ public class OrdersService {
         Stores store = storesRepository.findById(cart.getStoreId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
 
+        // 가게 영업 여부(active)
+        if (!store.isActive()) {
+            throw new IllegalArgumentException("현재 주문할 수 없는 가게입니다.");
+        }
+
+        // 영업 시간 확인
+        LocalTime now = LocalTime.now();
+        LocalTime opensAt = store.getOpensAt();
+        LocalTime closesAt = store.getClosesAt();
+        boolean isOpen;
+        if (opensAt.isBefore(closesAt)) {
+            isOpen = !now.isBefore(opensAt) && !now.isAfter(closesAt);
+        }
+        else {
+            // 영업 시간이 자정 넘어가는 경우
+            isOpen = !now.isBefore(opensAt) || !now.isAfter(closesAt);
+        }
+
+        if (!isOpen) {
+            throw new IllegalArgumentException("현재 영업 시간이 아닙니다.");
+        }
+
         // 기본 가격
         int totalPrice = cart.getCartTotalPrice();
+
+        // 최소 주문 금액 확인
+        if (totalPrice < store.getMinOrderPrice()) {
+            throw new IllegalArgumentException("최소 주문 금액(" + store.getMinOrderPrice() + "원) 이상 주문해야 합니다.");
+        }
 
         // Orders 엔티티 생성
         Orders order = new Orders();
@@ -128,6 +156,9 @@ public class OrdersService {
 
             order.setUsedPoints(request.getUsedPoints());
         }
+
+        // 배달비 추가
+        totalPrice += store.getDeliveryFee();
 
         // 최종 가격 업데이트
         order.setTotalPrice(totalPrice);
@@ -239,17 +270,19 @@ public class OrdersService {
         // 상태 : COMPLETED(배달 완료)시 사장님도 배달 완료 알림 받도록 구현
         if (status == Orders.Status.COMPLETED) {
 
-            Users user = order.getUser();
+            // 쿠폰을 적용하지 않은 주문만 포인트 적립이 되도록 설정
+            if (order.getAppliedCoupon() == null) {
+                Users user = order.getUser();
 
-            // 포인트 적립 (주문 금액의 5%)
-            int earnedPoints = (int) (order.getTotalPrice() * 0.05);
+                // 포인트 적립 (주문 금액의 5%)
+                int earnedPoints = (int) (order.getTotalPrice() * 0.05);
 
-            PointsDtos.EarnRequest earnRequest = new PointsDtos.EarnRequest();
-            earnRequest.setAmount(earnedPoints);
-            earnRequest.setReason("주문 완료 포인트 적립");
+                PointsDtos.EarnRequest earnRequest = new PointsDtos.EarnRequest();
+                earnRequest.setAmount(earnedPoints);
+                earnRequest.setReason("주문 완료 포인트 적립");
 
-            pointsService.earnPoints(user, earnRequest);
-
+                pointsService.earnPoints(user, earnRequest);
+            }
             // 사장님 알림
             slackService.sendOwnerMessage("[사장님 알림] 배달이 완료되었습니다.");
         }
