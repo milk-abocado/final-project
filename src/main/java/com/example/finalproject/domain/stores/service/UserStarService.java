@@ -129,31 +129,38 @@ public class UserStarService {
     }
 
     /**
-     * 현재 로그인한 사용자 ID를 조회하고 없으면 401을 던짐
-     * 필요 시 권한 정책(ADMIN 허용/차단 등)도 여기에서 통일 관리
+     * 현재 로그인한 사용자의 ID 반환
+     * - 인증 없음/잘못됨 → 401 Unauthorized
+     * - 사용자 미존재 → 401 Unauthorized
+     * - 권한이 ROLE_USER가 아니면 → 403 Forbidden
      */
     private Long currentUserIdOrThrow() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();  // 이메일 주소를 가져옵니다.
+        // SecurityContext 에서 현재 인증(Authentication) 객체를 가져옴
+        var auth = SecurityContextHolder.getContext().getAuthentication();
 
-        // 이메일을 사용해 사용자 정보 가져오기
+        // 인증 객체가 없거나(is null), 인증이 안 되었거나, 사용자 이름이 비어 있으면 → 401 Unauthorized
+        if (auth == null || !auth.isAuthenticated() || auth.getName() == null) {
+            throw new ApiException(ErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
+        }
+
+        // 인증 객체에서 사용자 이름(여기서는 email)을 꺼냄
+        String email = auth.getName();
+
+        // email 기반으로 Users 엔티티 조회, 없으면 → 401 Unauthorized
         Users user = usersRepo.findByEmail(email)
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
 
-        // USER만 즐겨찾기 기능을 사용할 수 있도록 설정
-        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
-        String roleString = authorities.stream()
+        // 현재 사용자의 권한 목록에서 "USER" 권한이 있는지 확인
+        boolean isUser = auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .findFirst()
-                .orElse(null);
+                .anyMatch("USER"::equals);
 
-        UserRole currentRole = UserRole.valueOf(Objects.requireNonNull(roleString).replace("ROLE_", "")); // "ROLE_" 부분 제거 후 변환
-
-        // USER 권한만 가능
-        if (currentRole != UserRole.USER) {
+        // USER 권한이 없으면 → 403 Forbidden
+        if (!isUser) {
             throw new ApiException(ErrorCode.FORBIDDEN, "즐겨찾기 기능은 USER만 가능합니다.");
         }
 
-        return user.getId();  // 사용자의 ID를 반환합니다.
+        // 모든 검증을 통과하면 사용자 ID 반환
+        return user.getId();
     }
 }
