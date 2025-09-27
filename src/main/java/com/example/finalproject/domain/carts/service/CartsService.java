@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -76,6 +77,37 @@ public class CartsService {
         return options;
     }
 
+    private void validateStore(Stores store) {
+
+        // 가게 존재 여부
+        if (store == null) {
+            throw new IllegalStateException("존재하지 않는 가게입니다.");
+        }
+
+        // 가게 영업 여부(active)
+        if (!store.isActive()) {
+            throw new IllegalStateException("현재 주문할 수 없는 가게입니다.");
+        }
+
+        // 영업 시간 확인
+        LocalTime now = LocalTime.now();
+        LocalTime opensAt = store.getOpensAt();
+        LocalTime closesAt = store.getClosesAt();
+        boolean isOpen;
+        if (opensAt.isBefore(closesAt)) {
+            isOpen = !now.isBefore(opensAt) && !now.isAfter(closesAt);
+        }
+        else {
+            // 영업 시간이 자정 넘어가는 경우
+            isOpen = !now.isBefore(opensAt) || !now.isAfter(closesAt);
+        }
+
+        if (!isOpen) {
+            throw new IllegalArgumentException("현재 영업 시간이 아닙니다.");
+        }
+
+    }
+
 
     public CartsResponse getCart(Long userId){
         CartsResponse cart = cartsRepository.getCart(userId);
@@ -129,9 +161,20 @@ public class CartsService {
         Menus menu = menusRepository.findById(cartsItemRequest.getMenuId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
 
+        // 메뉴 상태 체크
+        if (menu.getStatus() != Menus.MenuStatus.ACTIVE) {
+            throw new IllegalStateException("해당 메뉴("+menu.getName()+")는 주문할 수 없습니다.");
+        }
+
+        // 가게 조회
+        Stores store = menu.getStore();
+
+        // 영업 중인지 확인
+        validateStore(store);
+
         // 해당 메뉴로 storeId 가져오기
-        Long storeId = menu.getStore().getId();
-        String storeName = menu.getStore().getName();
+        Long storeId = store.getId();
+        String storeName = store.getName();
 
         // 장바구니 조회
         CartsResponse cart = cartsRepository.getCart(userId);
@@ -223,6 +266,17 @@ public class CartsService {
         // 메뉴 조회
         Menus menu = menusRepository.findById(item.getMenuId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
+
+        // 메뉴 상태 체크
+        if (menu.getStatus() != Menus.MenuStatus.ACTIVE) {
+            throw new IllegalStateException("해당 메뉴("+menu.getName()+")는 주문할 수 없습니다.");
+        }
+
+        // 가게 조회
+        Stores store = menu.getStore();
+
+        // 영업 중인지 확인
+        validateStore(store);
 
         // 해당 메뉴의 옵션 체크
         List<MenuOptions> optionGroups = menuOptionsRepository.findByMenuId(menu.getId());
