@@ -170,7 +170,7 @@ public class SearchesService {
         searchesRepository.save(search);
 
         //Redis 증가
-        String redisKey = "search_count:" + region + ":" + keyword;
+        String redisKey = "popular:" + region + ":" + keyword;
         redisTemplate.opsForValue().increment(redisKey, 1);
     }
 }

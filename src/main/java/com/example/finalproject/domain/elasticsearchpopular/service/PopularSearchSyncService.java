@@ -18,7 +18,7 @@ public class PopularSearchSyncService {
     private final ElasticsearchClient esClient;
     private static final String INDEX = "popular_searches_index";
 
-    @Scheduled(fixedRate = 1000 * 60 * 60) // 1시간
+    @Scheduled(fixedRate = 1000 * 60 * 5) // 1시간
     public void syncPopularSearches() throws Exception {
         Set<String> keys = stringRedisTemplate.keys("popular:*");
         if (keys == null) return;
