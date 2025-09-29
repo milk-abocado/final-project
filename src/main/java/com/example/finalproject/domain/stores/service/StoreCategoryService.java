@@ -6,8 +6,8 @@ import com.example.finalproject.domain.stores.dto.response.StoreCategoriesDelete
 import com.example.finalproject.domain.stores.dto.response.StoreCategoriesResponse;
 import com.example.finalproject.domain.stores.entity.StoreCategoryLink;
 import com.example.finalproject.domain.stores.entity.Stores;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.repository.StoreCategoryLinkRepository;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import jakarta.transaction.Transactional;
@@ -35,14 +35,14 @@ public class StoreCategoryService {
      *
      * @param storeId 대상 가게 ID
      * @return 검증 통과한 Stores 엔티티
-     * @throws ApiException 401/403/404 상황별 예외
+     * @throws StoresApiException 401/403/404 상황별 예외
      */
     private Stores ensureOwnerOfStore(Long storeId) {
         // SecurityContext에서 Authentication 조회
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || auth.getName() == null) {
             // 인증 정보가 없거나 비정상 → 401
-            throw new ApiException(ErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
+            throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
         }
 
         // 현재 사용자 권한에 OWNER가 포함되는지 검사
@@ -51,17 +51,17 @@ public class StoreCategoryService {
                 .anyMatch("OWNER"::equals);
         if (!isOwner) {
             // OWNER 권한이 아니면 → 403
-            throw new ApiException(ErrorCode.FORBIDDEN, "가게 카테고리 수정은 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "가게 카테고리 수정은 OWNER만 가능합니다.");
         }
 
         // 가게 존재 여부 확인(없으면 404)
         Stores s = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
 
         // 소유자 이메일과 현재 사용자(email=username) 비교(불일치 시 403)
         String email = auth.getName();
         if (!s.getOwner().getEmail().equals(email)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "본인 가게만 수정할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "본인 가게만 수정할 수 있습니다.");
         }
         return s;
     }
@@ -82,8 +82,8 @@ public class StoreCategoryService {
 
         // 규격에 맞춘 예외 코드: 0개면 400, 2개 초과면 409
         if (set.isEmpty() || set.size() > 2) {
-            throw new ApiException(
-                    set.isEmpty() ? ErrorCode.BAD_REQUEST : ErrorCode.CONFLICT,
+            throw new StoresApiException(
+                    set.isEmpty() ? StoresErrorCode.BAD_REQUEST : StoresErrorCode.CONFLICT,
                     set.isEmpty() ? "카테고리는 최소 1개 이상이어야 합니다."
                             : "카테고리는 최대 2개까지 설정할 수 있습니다."
             );
@@ -104,7 +104,7 @@ public class StoreCategoryService {
         // 이미 카테고리가 존재하면 등록 불가 → 409
         long existing = linkRepository.countByStore_Id(storeId);
         if (existing > 0)
-            throw new ApiException(ErrorCode.CONFLICT, "이미 등록된 카테고리가 있습니다. 수정 API를 사용하세요.");
+            throw new StoresApiException(StoresErrorCode.CONFLICT, "이미 등록된 카테고리가 있습니다. 수정 API를 사용하세요.");
 
         // 요청 카테고리 검증(0개=400, 초과=409)
         var set = validateSet(req.getCategories());
@@ -163,7 +163,7 @@ public class StoreCategoryService {
         // 존재 여부 확인(없으면 404)
         boolean exists = linkRepository.existsByStore_IdAndCategory(storeId, category);
         if (!exists) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "해당 카테고리가 존재하지 않습니다.");
+            throw new StoresApiException(StoresErrorCode.NOT_FOUND, "해당 카테고리가 존재하지 않습니다.");
         }
 
         // 단일 삭제 수행
@@ -190,7 +190,7 @@ public class StoreCategoryService {
         // 하나라도 존재하는지 확인(없으면 404)
         boolean any = linkRepository.existsByStore_Id(storeId);
         if (!any) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "삭제할 카테고리가 없습니다.");
+            throw new StoresApiException(StoresErrorCode.NOT_FOUND, "삭제할 카테고리가 없습니다.");
         }
 
         // 전체 삭제
@@ -212,7 +212,7 @@ public class StoreCategoryService {
     public StoreCategoriesResponse get(Long storeId) {
         // 가게 존재 여부 확인
         storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
 
         // 오너만 조회할 수 있도록 권한 검증
         ensureOwnerOfStore(storeId);  // 오너 검증

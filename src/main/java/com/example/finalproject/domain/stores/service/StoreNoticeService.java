@@ -4,8 +4,8 @@ import com.example.finalproject.domain.stores.dto.request.StoreNoticeRequest;
 import com.example.finalproject.domain.stores.dto.response.StoreNoticeResponse;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.entity.StoresNotice;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.repository.StoreNoticeRepository;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.users.entity.Users;
@@ -49,7 +49,7 @@ public class StoreNoticeService {
     public boolean isOwner(Long storeId, String email) {
         // 가게 조회
         Stores store = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
 
         // Lazy loading 초기화
         Users owner = store.getOwner();
@@ -73,7 +73,7 @@ public class StoreNoticeService {
     private String currentEmailOrThrow() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
+            throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
         }
         return auth.getName();
     }
@@ -92,7 +92,7 @@ public class StoreNoticeService {
 
         // (2) 오너 검증(권한 은닉을 쓰려면 isOwner 내부에서 404를 던지도록 변경 가능)
         if (!isOwner(storeId, currentEmail)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "공지 등록은 해당 가게의 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "공지 등록은 해당 가게의 OWNER만 가능합니다.");
         }
 
         // (3) 만료 공지 정리(동시성/정합성 ↑)
@@ -100,17 +100,17 @@ public class StoreNoticeService {
 
         // (4) 가게 존재 확인(위 isOwner 에서 이미 조회했지만, 안전상 재확인)
         Stores store = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
 
         // (5) 시간/내용 유효성 검증(400)
         validateWindow(req.getStartsAt(), req.getEndsAt(), req.getMinDurationHours(), req.getMaxDurationDays());
         if (!StringUtils.hasText(req.getContent())) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "공지 내용은 비어 있을 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "공지 내용은 비어 있을 수 없습니다.");
         }
 
         // (6) 가게당 1개 정책: 중복 방지(409) — DB UNIQUE 제약(store_id unique) 병행 권장
         if (storeNoticeRepository.existsByStore_Id(storeId)) {
-            throw new ApiException(ErrorCode.CONFLICT, "해당 가게에는 이미 공지가 존재합니다.");
+            throw new StoresApiException(StoresErrorCode.CONFLICT, "해당 가게에는 이미 공지가 존재합니다.");
         }
 
         // (7) 저장
@@ -129,7 +129,7 @@ public class StoreNoticeService {
             return toResponse(saved);   // 공지 응답 반환
         } catch (DataIntegrityViolationException e) {
             // DB UNIQUE 제약 위반 등 동시성에서 발생 시
-            throw new ApiException(ErrorCode.CONFLICT, "동일 시점에 공지가 이미 등록되었습니다.");
+            throw new StoresApiException(StoresErrorCode.CONFLICT, "동일 시점에 공지가 이미 등록되었습니다.");
         }
     }
 
@@ -144,7 +144,7 @@ public class StoreNoticeService {
     public List<StoreNoticeResponse> findAll(Long storeId, boolean onlyActive) {
         // (1) 가게 존재 검사(404) — 권한과 무관한 공개 조회라면 이 수준이면 충분
         if (!storesRepository.existsById(storeId)) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다.");
         }
 
         // (2) activeOnly 분기
@@ -176,18 +176,18 @@ public class StoreNoticeService {
 
         // (2) 오너 검증
         if (!isOwner(storeId, currentEmail)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "공지 수정은 해당 가게의 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "공지 수정은 해당 가게의 OWNER만 가능합니다.");
         }
 
         // (3) 대상 공지 조회(가게당 1개 정책 전제)
         StoresNotice notice = storeNoticeRepository.findByStore_Id(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "공지를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "공지를 찾을 수 없습니다."));
 
         // (4) 유효성 검증(400)
         validateWindow(req.getStartsAt(), req.getEndsAt(), req.getMinDurationHours(), req.getMaxDurationDays());
         // 공지 내용 검증
         if (!StringUtils.hasText(req.getContent())) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "공지 내용은 비어 있을 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "공지 내용은 비어 있을 수 없습니다.");
         }
 
         // (5) 수정 후 저장
@@ -212,12 +212,12 @@ public class StoreNoticeService {
 
         // (2) 오너 검증
         if (!isOwner(storeId, currentEmail)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "공지 삭제는 해당 가게의 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "공지 삭제는 해당 가게의 OWNER만 가능합니다.");
         }
 
         // (3) 대상 공지 조회(없으면 404)
         StoresNotice notice = storeNoticeRepository.findByStore_Id(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "공지를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "공지를 찾을 수 없습니다."));
 
         // (4) 삭제
         storeNoticeRepository.delete(notice);
@@ -231,30 +231,30 @@ public class StoreNoticeService {
     private void validateWindow(LocalDateTime startsAt, LocalDateTime endsAt,
                                 Integer minHours, Integer maxDays) {
         if (startsAt == null || endsAt == null) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "공지 시작/종료 시각은 필수입니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "공지 시작/종료 시각은 필수입니다.");
         }
         if (!endsAt.isAfter(startsAt)) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "종료 시각은 시작 시각 이후여야 합니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "종료 시각은 시작 시각 이후여야 합니다.");
         }
 
         // 최소/최대 시간 검증
         if (minHours != null && minHours < 0) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "최소 유지 시간은 0시간 이상이어야 합니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "최소 유지 시간은 0시간 이상이어야 합니다.");
         }
         if (maxDays != null && maxDays < 1) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "최대 유지 일수는 1일 이상이어야 합니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "최대 유지 일수는 1일 이상이어야 합니다.");
         }
 
         long hours = Duration.between(startsAt, endsAt).toHours();
         if (minHours != null && hours < minHours) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "공지 유지 시간이 최소 시간보다 짧습니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "공지 유지 시간이 최소 시간보다 짧습니다.");
         }
 
         // 경계 정확도 향상: endsAt이 (startsAt + maxDays) '초과'하면 위반
         if (maxDays != null) {
             LocalDateTime maxAllowedEnd = startsAt.plusDays(maxDays);
             if (endsAt.isAfter(maxAllowedEnd)) {
-                throw new ApiException(ErrorCode.BAD_REQUEST, "공지 유지 기간이 최대 일수를 초과했습니다.");
+                throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "공지 유지 기간이 최대 일수를 초과했습니다.");
             }
         }
     }

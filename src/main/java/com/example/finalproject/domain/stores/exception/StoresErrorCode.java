@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
  * - HttpStatus + 기본 메시지 매핑
  * - ApiException과 함께 사용
  */
-public enum ErrorCode {
+public enum StoresErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),       // 401
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),          // 403
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),         // 400
@@ -19,7 +19,7 @@ public enum ErrorCode {
     public final HttpStatus status; // HTTP 상태 코드
     public final String message;    // 기본 메시지
 
-    ErrorCode(HttpStatus status, String message) {
+    StoresErrorCode(HttpStatus status, String message) {
         this.status = status;
         this.message = message;
     }

@@ -2,8 +2,8 @@ package com.example.finalproject.domain.stores.controller;
 
 import com.example.finalproject.domain.stores.dto.request.StoresRequest;
 import com.example.finalproject.domain.stores.dto.response.StoresResponse;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.service.StoreLifecycleService;
 import com.example.finalproject.domain.stores.service.StoresService;
 import com.example.finalproject.domain.users.UserRole;
@@ -48,7 +48,7 @@ public class StoresController {
 
         // OWNER 권한 확인
         if (currentRole != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "가게 생성은 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "가게 생성은 OWNER만 가능합니다.");
         }
 
         // 가게 생성
@@ -83,7 +83,7 @@ public class StoresController {
 
         // OWNER 권한 확인
         if (currentRole != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "가게 수정은 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "가게 수정은 OWNER만 가능합니다.");
         }
 
         // 가게 수정
@@ -109,7 +109,7 @@ public class StoresController {
 
         // OWNER 권한 확인
         if (currentRole != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "가게 폐업은 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "가게 폐업은 OWNER만 가능합니다.");
         }
 
         // 가게 폐업 처리

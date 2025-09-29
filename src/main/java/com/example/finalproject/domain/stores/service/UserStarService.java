@@ -3,23 +3,19 @@ package com.example.finalproject.domain.stores.service;
 import com.example.finalproject.domain.stores.dto.response.StarredStoreResponse;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.entity.UserStar;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.stores.repository.UserStarRepository;
-import com.example.finalproject.domain.users.UserRole;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * UserStarService
@@ -55,26 +51,26 @@ public class UserStarService {
 
         // 이미 즐겨찾기한 가게인지 검증
         if (starRepo.existsByUser_IdAndStore_Id(uid, storeId)) {
-            throw new ApiException(ErrorCode.CONFLICT, "이미 즐겨찾기한 가게입니다.");
+            throw new StoresApiException(StoresErrorCode.CONFLICT, "이미 즐겨찾기한 가게입니다.");
         }
 
         // 상한 체크
         long count = starRepo.countByUser_Id(uid);
         if (count >= MAX_FAVORITES) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "즐겨찾기는 최대 " + MAX_FAVORITES + "개까지 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "즐겨찾기는 최대 " + MAX_FAVORITES + "개까지 가능합니다.");
         }
 
         // 연관 엔티티 로드
         Stores store = storesRepo.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
 
         // 가게가 폐업 상태인지 확인
         if (!store.isActive()) { // 'isActive()' 메서드가 가게가 폐업했는지 확인
-            throw new ApiException(ErrorCode.FORBIDDEN, "폐업한 가게는 즐겨찾기할 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "폐업한 가게는 즐겨찾기할 수 없습니다.");
         }
 
         Users user = usersRepo.findById(uid)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "존재하지 않는 사용자입니다."));
 
         // 저장
         starRepo.save(UserStar.builder().user(user).store(store).build());
@@ -96,7 +92,7 @@ public class UserStarService {
     public String remove(Long storeId) {
         Long uid = currentUserIdOrThrow();
         UserStar star = starRepo.findByUser_IdAndStore_Id(uid, storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "즐겨찾기된 내역이 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "즐겨찾기된 내역이 없습니다."));
 
         String storeName = star.getStore().getName();
         starRepo.delete(star);
@@ -140,7 +136,7 @@ public class UserStarService {
 
         // 인증 객체가 없거나(is null), 인증이 안 되었거나, 사용자 이름이 비어 있으면 → 401 Unauthorized
         if (auth == null || !auth.isAuthenticated() || auth.getName() == null) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
+            throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
         }
 
         // 인증 객체에서 사용자 이름(여기서는 email)을 꺼냄
@@ -148,7 +144,7 @@ public class UserStarService {
 
         // email 기반으로 Users 엔티티 조회, 없으면 → 401 Unauthorized
         Users user = usersRepo.findByEmail(email)
-                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
 
         // 현재 사용자의 권한 목록에서 "USER" 권한이 있는지 확인
         boolean isUser = auth.getAuthorities().stream()
@@ -157,7 +153,7 @@ public class UserStarService {
 
         // USER 권한이 없으면 → 403 Forbidden
         if (!isUser) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "즐겨찾기 기능은 USER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "즐겨찾기 기능은 USER만 가능합니다.");
         }
 
         // 모든 검증을 통과하면 사용자 ID 반환

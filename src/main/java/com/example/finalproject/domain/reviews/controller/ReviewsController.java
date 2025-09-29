@@ -6,8 +6,8 @@ import com.example.finalproject.domain.reviews.dto.response.ReviewsItemResponse;
 import com.example.finalproject.domain.reviews.dto.response.ReviewsUpdateResponse;
 import com.example.finalproject.domain.reviews.dto.response.ReviewsWithCommentResponse;
 import com.example.finalproject.domain.reviews.service.ReviewsService;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.users.UserRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,13 +44,13 @@ public class ReviewsController {
      */
     private UserRole currentRole() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) throw new ApiException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+        if (authentication == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         String roleString = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .findFirst()
                 .orElse(null);
-        if (roleString == null) throw new ApiException(ErrorCode.UNAUTHORIZED, "권한이 없습니다.");
+        if (roleString == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "권한이 없습니다.");
         return UserRole.valueOf(roleString.replace("ROLE_", ""));
     }
 
@@ -66,7 +66,7 @@ public class ReviewsController {
         // 컨트롤러에서는 상위 역할만 간단히 걸러주고, 상세 검증은 서비스에서 처리
         UserRole role = currentRole();
         if (role == UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "리뷰 작성은 USER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "리뷰 작성은 USER만 가능합니다.");
         }
         ReviewsItemResponse response = reviewsService.create(storeId, req);
         URI location = URI.create("/stores/" + storeId + "/reviews/" + response.getId());
@@ -103,7 +103,7 @@ public class ReviewsController {
                                                                       @RequestParam(defaultValue = "0") int page,
                                                                       @RequestParam(defaultValue = "10") int size) {
         if (currentRole() != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "해당 리뷰 목록 조회는 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "해당 리뷰 목록 조회는 OWNER만 가능합니다.");
         }
         Page<ReviewsItemResponse> reviews =
                 reviewsService.getReviewsByOwner(storeId, minRating, maxRating, PageRequest.of(page, size));
@@ -137,7 +137,7 @@ public class ReviewsController {
                                                               @PathVariable Long reviewId,
                                                               @RequestBody @Valid ReviewsUpdateRequest req) {
         if (currentRole() != UserRole.USER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "권한이 없습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "권한이 없습니다.");
         }
         return ResponseEntity.ok(reviewsService.update(storeId, reviewId, req));
     }
@@ -151,7 +151,7 @@ public class ReviewsController {
     public ResponseEntity<Map<String, String>> deleteReview(@PathVariable Long storeId,
                                                             @PathVariable Long reviewId) {
         if (currentRole() != UserRole.USER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "권한이 없습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "권한이 없습니다.");
         }
         return reviewsService.deleteAsUser(storeId, reviewId);
     }
