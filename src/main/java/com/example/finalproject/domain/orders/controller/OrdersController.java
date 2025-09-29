@@ -1,13 +1,11 @@
 package com.example.finalproject.domain.orders.controller;
 
 import com.example.finalproject.domain.carts.exception.AccessDeniedException;
-import com.example.finalproject.domain.coupons.exception.CouponException;
 import com.example.finalproject.domain.orders.dto.request.OrderStatusRequest;
 import com.example.finalproject.domain.orders.dto.request.OrdersRequest;
 import com.example.finalproject.domain.orders.dto.response.OrderStatusResponse;
 import com.example.finalproject.domain.orders.dto.response.OrdersResponse;
 import com.example.finalproject.domain.orders.service.OrdersService;
-import com.example.finalproject.domain.points.exception.PointException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
