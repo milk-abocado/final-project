@@ -1,12 +1,14 @@
 package com.example.finalproject.domain.points.exception;
 
 public class PointException extends RuntimeException {
+    private final PointErrorCode errorCode;
 
-    public PointException(String message) {
-        super(message);
+    public PointException(PointErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
     }
 
-    public PointException(String message, Throwable cause) {
-        super(message, cause);
+    public PointErrorCode getErrorCode() {
+        return errorCode;
     }
 }
