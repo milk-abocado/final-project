@@ -1,12 +1,14 @@
 package com.example.finalproject.domain.coupons.exception;
 
 public class CouponException extends RuntimeException {
+    private final CouponErrorCode errorCode;
 
-    public CouponException(String message) {
-        super(message);
+    public CouponException(CouponErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
     }
 
-    public CouponException(String message, Throwable cause) {
-        super(message, cause);
+    public CouponErrorCode getErrorCode() {
+        return errorCode;
     }
 }
