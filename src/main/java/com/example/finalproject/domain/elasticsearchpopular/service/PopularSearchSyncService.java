@@ -36,7 +36,12 @@ public class PopularSearchSyncService {
                 esClient.update(u -> u
                                 .index(INDEX)
                                 .id(docId)
-                                .doc(Map.of("region", region, "keyword", keyword, "count", count)),
+                                .doc(Map.of(
+                                        "region", region,
+                                        "keyword", keyword,
+                                        "count", count,
+                                        "type", "redis" //Redis -> ES 동기화 시 색인
+                                )),
                         Map.class);
             } catch (Exception e) {
                 esClient.index(i -> i
@@ -46,7 +51,8 @@ public class PopularSearchSyncService {
                                 "region", region,
                                 "keyword", keyword,
                                 "count", count,
-                                "created_at", new Date()
+                                "created_at", new Date(),
+                                "type", "redis" //신규 색인
                         ))
                 );
             }

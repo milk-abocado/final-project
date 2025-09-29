@@ -29,6 +29,7 @@ public class ElasticSearchInitializer {
                             .properties("count", p -> p.integer(i -> i))
                             .properties("rank", p -> p.integer(i -> i))
                             .properties("created_at", p -> p.date(d -> d))
+                            .properties("type", p -> p.keyword(k -> k)) //type 필드 생성
                     )
             );
             System.out.println("ElasticSearch index '" + INDEX + "' created with search_as_you_type mapping.");

@@ -160,14 +160,8 @@ public class SearchesService {
 
     // 검색 키워드와 지역별 count 증가
     public void recordSearch(String keyword, String region, Long userId) {
-        // DB 저장
-        Searches search = new Searches();
-        search.setRegion(region);
-        search.setKeyword(keyword);
-        search.setUserId(userId);
-        search.setCount(1);
-
-        searchesRepository.save(search);
+        SearchesRequestDto dto = new SearchesRequestDto(keyword, region, userId);
+        saveOrUpdate(dto); //DB 기록은 saveOrUpdate 재사용
 
         //Redis 증가
         String redisKey = "popular:" + region + ":" + keyword;

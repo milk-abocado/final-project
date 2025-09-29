@@ -14,7 +14,6 @@ public class SearchesException extends RuntimeException {
     return status;
   }
 
-  // 편의 메서드 (정적 팩토리 메서드)
   public static SearchesException badRequest(String message) {
     return new SearchesException(HttpStatus.BAD_REQUEST, message);
   }

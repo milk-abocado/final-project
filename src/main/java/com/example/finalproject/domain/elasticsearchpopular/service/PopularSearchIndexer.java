@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -41,10 +42,17 @@ public class PopularSearchIndexer {
                         .createdAt(search.getCreatedAt())
                         .build();
 
+                String keyword = "";
                 esClient.index(i -> i
                         .index(indexName)
                         .id(region + "_" + search.getId()) // 지역 단위 고유 ID
-                        .document(doc)
+                        .document(Map.of(
+                                "region", search.getRegion(),
+                                "keyword", search.getKeyword(),
+                                "count", search.getCount(),
+                                "created_at", search.getCreatedAt(),
+                                "type", "db" //DB -> ES 인덱싱, 문서 생성
+                        ))
                 );
             }
         }

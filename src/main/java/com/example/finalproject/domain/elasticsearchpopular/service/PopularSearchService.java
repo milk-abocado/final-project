@@ -23,22 +23,28 @@ public class PopularSearchService {
     public List<String> autoComplete(String keyword, String region) throws Exception {
         var resp = esClient.search(s -> s
                         .index(INDEX)
-                        .size(10)
+                        .size(20)
                         .query(q -> q
                                 .bool(b -> b
                                         .must(m -> m.term(t -> t.field("region").value(region)))
-                                        .must(m -> m.match(ma -> ma.field("keyword").query(keyword)))
+                                        .must(m -> m.term(t -> t.field("type").value("redis"))) //redis 기반만
+                                        .must(m -> m.matchPhrasePrefix(mp -> mp
+                                                .field("keyword") //search_as_you_type 필드
+                                                .query(keyword)
+                                        ))
                                 )
                         )
-                        .sort(so -> so.field(f -> f.field("count").order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)))
+                        .sort(so -> so.field(f -> f.field("count").order(SortOrder.Desc)))
                 , Map.class
         );
 
-        List<String> results = new ArrayList<>();
+        //중복제거 (LinkedHashSet -> 순서 보장 + 중복 제거)
+        Set<String> uniqueResults = new LinkedHashSet<>();
         for (var hit : resp.hits().hits()) {
-            results.add(hit.source().get("keyword").toString());
+            uniqueResults.add(hit.source().get("keyword").toString());
+            if (uniqueResults.size() >= 10) break; //최대 10개까지만
         }
-        return results;
+        return new ArrayList<>(uniqueResults);
     }
 
     /**
@@ -49,8 +55,11 @@ public class PopularSearchService {
         var response = esClient.search(s -> s
                         .index(INDEX)
                         .size(10)
-                        .query(q -> q.term(t -> t.field("region").value(region)))
-                        .sort(so -> so.field(f -> f.field("count").order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)))
+                        .query(q -> q.bool(b -> b
+                        .must(m -> m.term(t -> t.field("region").value(region)))
+                        .must(m -> m.term(t -> t.field("type").value("redis"))) //Redis 기반만 필터링
+                ))
+        .sort(so -> so.field(f -> f.field("count").order(SortOrder.Desc)))
                 , Map.class);
 
         List<Map<String, Object>> top10 = new ArrayList<>();
