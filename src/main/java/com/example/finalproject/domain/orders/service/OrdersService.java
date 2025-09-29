@@ -6,6 +6,7 @@ import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.carts.service.CartsService;
 import com.example.finalproject.domain.coupons.entity.CouponType;
 import com.example.finalproject.domain.coupons.entity.Coupons;
+import com.example.finalproject.domain.coupons.exception.CouponException;
 import com.example.finalproject.domain.coupons.repository.CouponsRepository;
 import com.example.finalproject.domain.coupons.service.CouponsService;
 import com.example.finalproject.domain.menus.entity.MenuOptionChoices;
@@ -17,11 +18,15 @@ import com.example.finalproject.domain.orders.dto.response.*;
 import com.example.finalproject.domain.orders.entity.OrderItems;
 import com.example.finalproject.domain.orders.entity.OrderOptions;
 import com.example.finalproject.domain.orders.entity.Orders;
+import com.example.finalproject.domain.orders.exception.ErrorCode;
+import com.example.finalproject.domain.orders.exception.OrdersException;
 import com.example.finalproject.domain.orders.repository.OrderItemsRepository;
 import com.example.finalproject.domain.orders.repository.OrderOptionsRepository;
 import com.example.finalproject.domain.orders.repository.OrdersRepository;
 import com.example.finalproject.domain.points.dto.PointsDtos;
+import com.example.finalproject.domain.points.exception.PointException;
 import com.example.finalproject.domain.points.service.PointsService;
+import com.example.finalproject.domain.slack.exception.SlackException;
 import com.example.finalproject.domain.slack.service.SlackService;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
@@ -31,6 +36,7 @@ import com.example.finalproject.domain.orders.util.OrderSlackMessage;
 
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -44,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrdersService {
@@ -66,21 +73,21 @@ public class OrdersService {
 
         // User 조회
         Users user = usersRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> new OrdersException(ErrorCode.BAD_REQUEST, "존재하지 않는 사용자입니다."));
 
         // Cart 조회
         CartsResponse cart = cartsService.getCart(userId);
         if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) {
-            throw new IllegalArgumentException("장바구니가 비어있습니다.");
+            throw new OrdersException(ErrorCode.CART_EMPTY, "장바구니가 비어 있습니다.");
         }
 
         // Store 조회
         Stores store = storesRepository.findById(cart.getStoreId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
+                .orElseThrow(() -> new OrdersException(ErrorCode.STORE_NOT_FOUND, "존재하지 않는 가게입니다."));
 
         // 가게 영업 여부(active)
         if (!store.isActive()) {
-            throw new IllegalArgumentException("현재 주문할 수 없는 가게입니다.");
+            throw new OrdersException(ErrorCode.GONE, "폐업한 가게입니다.");
         }
 
         // 영업 시간 확인
@@ -97,7 +104,7 @@ public class OrdersService {
         }
 
         if (!isOpen) {
-            throw new IllegalArgumentException("현재 영업 시간이 아닙니다.");
+            throw new OrdersException(ErrorCode.STORE_CLOSED, "현재 영업 시간이 아닙니다.");
         }
 
         // 기본 가격
@@ -105,7 +112,7 @@ public class OrdersService {
 
         // 최소 주문 금액 확인
         if (totalPrice < store.getMinOrderPrice()) {
-            throw new IllegalArgumentException("최소 주문 금액(" + store.getMinOrderPrice() + "원) 이상 주문해야 합니다.");
+            throw new OrdersException(ErrorCode.BAD_REQUEST, "최소 주문 금액(" + store.getMinOrderPrice() + "원) 이상 주문해야 합니다.");
         }
 
         // Orders 엔티티 생성
@@ -122,7 +129,7 @@ public class OrdersService {
         // 쿠폰 적용
         if (request.getUsedCouponId() != null) {
             Coupons coupon = couponsRepository.findById(request.getUsedCouponId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 쿠폰입니다."));
+                    .orElseThrow(() -> new OrdersException(ErrorCode.COUPON_NOT_FOUND, "존재하지 않는 쿠폰입니다."));
 
             int discount = 0;
             if (coupon.getType() == CouponType.RATE) {
@@ -138,7 +145,12 @@ public class OrdersService {
             if (totalPrice < 0) totalPrice = 0;
 
             // 쿠폰 사용 처리
-            couponsService.useCoupon(userId, coupon.getCode(), order.getId());
+            try {
+                couponsService.useCoupon(userId, coupon.getCode(), order.getId());
+            }
+            catch (CouponException e){
+                throw new OrdersException(ErrorCode.INVALID_COUPON, e.getMessage());
+            }
             order.setAppliedCoupon(coupon);
         }
 
@@ -149,7 +161,11 @@ public class OrdersService {
             useRequest.setOrderId(order.getId());
             useRequest.setAmount(request.getUsedPoints());
 
-            pointsService.usePoints(user, useRequest);
+            try {
+                pointsService.usePoints(user, useRequest);
+            } catch (PointException e) {
+                throw new OrdersException(ErrorCode.INVALID_POINTS, e.getMessage());
+            }
 
             totalPrice -= request.getUsedPoints();
             if (totalPrice < 0) totalPrice = 0;
@@ -167,11 +183,11 @@ public class OrdersService {
         // OrderItems, OrderOptions 생성
         for (CartsItemResponse cartItem : cart.getItems()) {
             Menus menu = menusRepository.findById(cartItem.getMenuId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
+                    .orElseThrow(() -> new OrdersException(ErrorCode.MENU_NOT_FOUND, "존재하지 않는 메뉴입니다."));
 
             // 메뉴 상태 체크
             if (menu.getStatus() != Menus.MenuStatus.ACTIVE) {
-                throw new IllegalStateException("해당 메뉴("+menu.getName()+")는 주문할 수 없습니다.");
+                throw new OrdersException(ErrorCode.MENU_NOT_ACTIVE, "해당 메뉴("+menu.getName()+")는 주문할 수 없습니다.");
             }
 
             OrderItems orderItem = new OrderItems();
@@ -183,7 +199,7 @@ public class OrdersService {
             if (cartItem.getOptions() != null && !cartItem.getOptions().isEmpty()) {
                 List<OrderOptions> options = cartItem.getOptions().stream().map(opt -> {
                     MenuOptionChoices choice = menuOptionChoicesRepository.findById(opt.getMenuOptionChoicesId())
-                            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 옵션 선택입니다."));
+                            .orElseThrow(() -> new OrdersException(ErrorCode.BAD_REQUEST, "존재하지 않는 옵션 선택입니다."));
 
                     OrderOptions orderOption = new OrderOptions();
                     orderOption.setOrderItem(orderItem);
@@ -199,10 +215,15 @@ public class OrdersService {
         // 주문 생성 후 장바구니 비우기
         cartsService.clearCart(userId);
 
-        // 사장님 채널로 새 주문 알림
-        slackService.sendOwnerMessage("[사장님 알림] 새 주문이 들어왔습니다.️");
-        // 사용자 채널로 주문 대기 알림
-        slackService.sendUserMessage(OrderSlackMessage.of("WAITING"));
+        try {
+            // 사장님 채널로 새 주문 알림
+            slackService.sendOwnerMessage("[사장님 알림] 새 주문이 들어왔습니다.️");
+            // 사용자 채널로 주문 대기 알림
+            slackService.sendUserMessage(OrderSlackMessage.of("WAITING"));
+        }
+        catch (SlackException e) {
+            log.error("Slack 알림 실패: {}", e.getMessage(), e);
+        }
 
         return buildOrderResponse(order);
     }
@@ -217,16 +238,16 @@ public class OrdersService {
 
         // 주문 확인
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+                .orElseThrow(() -> new OrdersException(ErrorCode.ORDER_NOT_FOUND, "존재하지 않는 주문입니다."));
 
         // 상태 확인
         Orders.Status status = Arrays.stream(Orders.Status.values())
                 .filter(s -> s.name().equalsIgnoreCase(statusStr))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 주문 상태입니다."));
+                .orElseThrow(() -> new OrdersException(ErrorCode.INVALID_ORDER_STATUS, "유효하지 않은 주문 상태입니다."));
 
         if (!order.getStatus().canTransitionTo(status)) {
-            throw new IllegalArgumentException("주문 상태 '" + order.getStatus() + "' → '" + status + "' 전환은 허용되지 않습니다.");
+            throw new OrdersException(ErrorCode.BAD_REQUEST, "주문 상태 '" + order.getStatus() + "' → '" + status + "' 전환은 허용되지 않습니다.");
         }
 
         // OWNER 권한 여부 확인
@@ -270,7 +291,13 @@ public class OrdersService {
 
         // 사용자 채널로 상태별 알림
         String slackMsg = OrderSlackMessage.of(status.name());
-        slackService.sendUserMessage(slackMsg);
+
+        try {
+            slackService.sendUserMessage(slackMsg);
+        }
+        catch (SlackException e) {
+            log.error("Slack 알림 실패: {}", e.getMessage(), e);
+        }
 
         // 상태 : COMPLETED(배달 완료)시 사장님도 배달 완료 알림 받도록 구현
         if (status == Orders.Status.COMPLETED) {
@@ -286,10 +313,24 @@ public class OrdersService {
                 earnRequest.setAmount(earnedPoints);
                 earnRequest.setReason("주문 완료 포인트 적립");
 
-                pointsService.earnPoints(user, earnRequest);
+                try {
+                    pointsService.earnPoints(user, earnRequest);
+                } catch (PointException e) {
+                    log.error("포인트 적립 실패: {}", e.getMessage(), e);
+                    try {
+                        slackService.sendUserMessage("[개인 알림] 포인트 적립에 실패하였습니다. 고객센터에 문의하세요.");
+                    } catch (SlackException se) {
+                        log.error("Slack 알림 실패: {}", se.getMessage(), se);
+                    }
+                }
             }
             // 사장님 알림
-            slackService.sendOwnerMessage("[사장님 알림] 배달이 완료되었습니다.");
+            try {
+                slackService.sendOwnerMessage("[사장님 알림] 배달이 완료되었습니다.");
+            }
+            catch (SlackException e) {
+                log.error("Slack 알림 실패: {}", e.getMessage(), e);
+            }
         }
 
         OrderStatusResponse resp = new OrderStatusResponse();
@@ -311,7 +352,7 @@ public class OrdersService {
 
         // 주문 확인
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+                .orElseThrow(() -> new OrdersException(ErrorCode.ORDER_NOT_FOUND, "존재하지 않는 주문입니다."));
 
         // OWNER 권한 여부 확인
         boolean isOwner = authentication.getAuthorities().stream()
@@ -359,7 +400,7 @@ public class OrdersService {
 
         // 주문 조회
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+                .orElseThrow(() -> new OrdersException(ErrorCode.ORDER_NOT_FOUND, "존재하지 않는 주문입니다."));
 
         // 주문자와 해당 요청을 한 사용자가 일치하는지 확인
         if (!order.getUser().getId().equals(userId)) {

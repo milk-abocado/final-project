@@ -2,14 +2,14 @@ package com.example.finalproject.domain.orders.controller;
 
 import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import com.example.finalproject.domain.orders.dto.response.OrdersResponse;
+import com.example.finalproject.domain.orders.exception.ErrorCode;
+import com.example.finalproject.domain.orders.exception.OrdersException;
 import com.example.finalproject.domain.orders.service.OrdersService;
 import com.example.finalproject.domain.stores.entity.Stores;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -26,9 +26,6 @@ public class OrdersOwnerController {
     private final OrdersService ordersService;
     private final StoresRepository storesRepository;
 
-    private ResponseEntity<String> str(HttpStatusCode status, String msg) {
-        return ResponseEntity.status(status).body(msg);
-    }
 
     private Long verifiedUser(Authentication authentication) {
 
@@ -57,27 +54,19 @@ public class OrdersOwnerController {
             @RequestParam int page,
             @RequestParam int size
     ) {
-        try{
-            // 권한 체크
-            Long userId = verifiedUser(authentication);
+        // 권한 체크
+        Long userId = verifiedUser(authentication);
 
-            Stores store = storesRepository.findById(storeId)
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 가게입니다."));
+        Stores store = storesRepository.findById(storeId)
+                .orElseThrow(() -> new OrdersException(ErrorCode.STORE_NOT_FOUND, "존재하지 않는 가게입니다."));
 
-            if (!store.getOwner().getId().equals(userId)) {
-                throw new AccessDeniedException("본인 가게만 접근할 수 있습니다.");
-            }
-
-            Pageable pageable = PageRequest.of(page, size);
-            List<OrdersResponse> resp = ordersService.getOrdersByStore(storeId, pageable);
-            return ResponseEntity.ok(resp);
-
-        } catch (AccessDeniedException e) {
-            return str(HttpStatus.FORBIDDEN, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return str(HttpStatus.BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+        if (!store.getOwner().getId().equals(userId)) {
+            throw new AccessDeniedException("본인 가게만 접근할 수 있습니다.");
         }
+
+        Pageable pageable = PageRequest.of(page, size);
+        List<OrdersResponse> resp = ordersService.getOrdersByStore(storeId, pageable);
+        return ResponseEntity.ok(resp);
+
     }
 }

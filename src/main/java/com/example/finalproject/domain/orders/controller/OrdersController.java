@@ -10,7 +10,6 @@ import com.example.finalproject.domain.orders.service.OrdersService;
 import com.example.finalproject.domain.points.exception.PointException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -24,10 +23,6 @@ import java.util.Map;
 public class OrdersController {
 
     private final OrdersService ordersService;
-
-    private ResponseEntity<String> str(HttpStatusCode status, String msg) {
-        return ResponseEntity.status(status).body(msg);
-    }
 
     private Long verifiedUser(Authentication authentication) {
 
@@ -53,19 +48,11 @@ public class OrdersController {
     public ResponseEntity<?> createOrder(
             Authentication authentication,
             @RequestBody OrdersRequest request) {
-        try {
-            // 권한 체크
-            Long userId = verifiedUser(authentication);
+        // 권한 체크
+        Long userId = verifiedUser(authentication);
 
-            OrdersResponse resp = ordersService.createOrder(userId, request);
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(resp);
-
-        } catch (AccessDeniedException e) {
-            return str(HttpStatus.FORBIDDEN, e.getMessage());
-        } catch ( CouponException | PointException | IllegalArgumentException e) {
-            return str(HttpStatus.BAD_REQUEST, e.getMessage());
-        }
+        OrdersResponse resp = ordersService.createOrder(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
     // 주문 상태 수정
@@ -74,18 +61,8 @@ public class OrdersController {
             Authentication authentication,
             @PathVariable Long orderId,
             @RequestBody OrderStatusRequest request) {
-        try {
-
-            OrderStatusResponse resp = ordersService.updateOrderStatus(authentication, orderId, request.getStatus());
-            return ResponseEntity.ok(resp);
-
-        } catch (AccessDeniedException e) {
-            return str(HttpStatus.FORBIDDEN, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return str(HttpStatus.BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
-        }
+        OrderStatusResponse resp = ordersService.updateOrderStatus(authentication, orderId, request.getStatus());
+        return ResponseEntity.ok(resp);
     }
 
     // 주문 단건 조회
@@ -93,18 +70,8 @@ public class OrdersController {
     public ResponseEntity<?> getOrder(
             Authentication authentication,
             @PathVariable Long orderId) {
-        try{
-
-            OrdersResponse resp = ordersService.getOrder(authentication, orderId);
-            return ResponseEntity.ok(resp);
-
-        } catch (AccessDeniedException e) {
-            return str(HttpStatus.FORBIDDEN, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return str(HttpStatus.BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
-        }
+        OrdersResponse resp = ordersService.getOrder(authentication, orderId);
+        return ResponseEntity.ok(resp);
     }
 
     // 주문 내역 삭제
@@ -112,20 +79,11 @@ public class OrdersController {
     public ResponseEntity<?> deleteOrder(
             Authentication authentication,
             @PathVariable Long orderId) {
-        try{
-            // 권한 체크
-            Long userId = verifiedUser(authentication);
+        // 권한 체크
+        Long userId = verifiedUser(authentication);
 
-            ordersService.deleteOrder(userId, orderId);
+        ordersService.deleteOrder(userId, orderId);
+        return ResponseEntity.ok().build();
 
-            return ResponseEntity.ok().build();
-
-        } catch (AccessDeniedException e) {
-            return str(HttpStatus.FORBIDDEN, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return str(HttpStatus.BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            return str(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
-        }
     }
 }
