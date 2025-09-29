@@ -1,6 +1,8 @@
 package com.example.finalproject.domain.carts.repository;
 
 import com.example.finalproject.domain.carts.dto.response.CartsResponse;
+import com.example.finalproject.domain.carts.exception.ErrorCode;
+import com.example.finalproject.domain.carts.exception.CartsException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -31,7 +33,7 @@ public class CartsRepository {
             return objectMapper.readValue(json, CartsResponse.class);
         }
         catch (JsonProcessingException e){
-            throw new RuntimeException("Cart parsing error", e);
+            throw new CartsException(ErrorCode.BAD_REQUEST, "장바구니 파싱 오류");
         }
     }
 
@@ -40,7 +42,7 @@ public class CartsRepository {
             redisTemplate.opsForValue().set(cartKey(userId), objectMapper.writeValueAsString(cart));
         }
         catch (JsonProcessingException e){
-            throw new RuntimeException("Cart serialization error", e); // 바이트 스트림 형태의 연속적인 데이터로 변환에서 error
+            throw new CartsException(ErrorCode.BAD_REQUEST, "장바구니 직렬화 오류"); // 바이트 스트림 형태의 연속적인 데이터로 변환하는 과정에서 error
         }
     }
 

@@ -5,6 +5,8 @@ import com.example.finalproject.domain.carts.dto.request.CartsOptionRequest;
 import com.example.finalproject.domain.carts.dto.response.CartsItemResponse;
 import com.example.finalproject.domain.carts.dto.response.CartsOptionResponse;
 import com.example.finalproject.domain.carts.dto.response.CartsResponse;
+import com.example.finalproject.domain.carts.exception.CartsException;
+import com.example.finalproject.domain.carts.exception.ErrorCode;
 import com.example.finalproject.domain.carts.repository.CartsRepository;
 import com.example.finalproject.domain.menus.entity.MenuOptionChoices;
 import com.example.finalproject.domain.menus.entity.MenuOptions;
@@ -52,7 +54,7 @@ public class CartsService {
             for (var optReq : cartsOptionRequest) {
                 MenuOptionChoices choice = validChoices.get(optReq.getMenuOptionChoicesId());
                 if (choice == null) {
-                    throw new IllegalArgumentException("잘못된 옵션 선택입니다: " + optReq.getMenuOptionChoicesId());
+                    throw new CartsException(ErrorCode.BAD_REQUEST, "잘못된 옵션 선택입니다: " + optReq.getMenuOptionChoicesId());
                 }
                 options.add(new CartsOptionResponse(choice.getId(), choice.getChoiceName(), choice.getExtraPrice()));
             }
@@ -65,28 +67,27 @@ public class CartsService {
 
             // 필수 옵션 + 최소 선택 개수 체크
             if (Boolean.TRUE.equals(group.getIsRequired()) && selectedCount < (group.getMinSelect() != null ? group.getMinSelect() : 1)) {
-                throw new IllegalArgumentException("필수 옵션 (" + group.getOptionsName() + ")을 최소" + group.getMinSelect() + "개 선택해주세요.");
+                throw new CartsException(ErrorCode.BAD_REQUEST, "필수 옵션 (" + group.getOptionsName() + ")을 최소" + group.getMinSelect() + "개 선택해주세요.");
             }
 
             // 최대 선택 체크
             if (group.getMaxSelect() != null && selectedCount > group.getMaxSelect()) {
-                throw new IllegalArgumentException("옵션 (" + group.getOptionsName() + ")은 최대 " + group.getMaxSelect() + "개까지만 선택할 수 있습니다.");
+                throw new CartsException(ErrorCode.BAD_REQUEST, "옵션 (" + group.getOptionsName() + ")은 최대 " + group.getMaxSelect() + "개까지만 선택할 수 있습니다.");
             }
         }
 
         return options;
     }
 
-    private void validateStore(Stores store) {
-
+    private void validateStore(Stores store){
         // 가게 존재 여부
         if (store == null) {
-            throw new IllegalStateException("존재하지 않는 가게입니다.");
+            throw new CartsException(ErrorCode.STORE_NOT_FOUND, "존재하지 않는 가게입니다.");
         }
 
         // 가게 영업 여부(active)
         if (!store.isActive()) {
-            throw new IllegalStateException("현재 주문할 수 없는 가게입니다.");
+            throw new CartsException(ErrorCode.GONE, "폐업한 가게입니다.");
         }
 
         // 영업 시간 확인
@@ -103,11 +104,31 @@ public class CartsService {
         }
 
         if (!isOpen) {
-            throw new IllegalArgumentException("현재 영업 시간이 아닙니다.");
+            throw new CartsException(ErrorCode.STORE_CLOSED, "현재 영업 시간이 아닙니다.");
         }
-
     }
 
+    private Menus validateMenuAndStore(Long menuId, int amount) {
+
+        // 수량 체크
+        if (amount <= 0) {
+            throw new CartsException(ErrorCode.BAD_REQUEST, "수량은 1 이상이어야 합니다.");
+        }
+
+        // 메뉴 조회
+        Menus menu = menusRepository.findById(menuId)
+                .orElseThrow(() -> new CartsException(ErrorCode.MENU_NOT_FOUND, "존재하지 않는 메뉴입니다."));
+
+        // 메뉴 상태 체크
+        if (menu.getStatus() != Menus.MenuStatus.ACTIVE) {
+            throw new CartsException(ErrorCode.MENU_NOT_ACTIVE, "해당 메뉴("+menu.getName()+")는 주문할 수 없습니다.");
+        }
+
+        // 가게 영업 중인지 체크
+        validateStore(menu.getStore());
+
+        return menu;
+    }
 
     public CartsResponse getCart(Long userId){
         CartsResponse cart = cartsRepository.getCart(userId);
@@ -122,24 +143,20 @@ public class CartsService {
         // 장바구니에 아이템이 있고 storeId가 없으면 메뉴에서 가져오기
         if ((cart.getStoreId() == null || cart.getStoreName() == null) && !cart.getItems().isEmpty()) {
             Long firstMenuId = cart.getItems().get(0).getMenuId();
-            var optionalMenu = menusRepository.findById(firstMenuId);
-            if (optionalMenu.isPresent()) {
-                Menus menu = optionalMenu.get();
-                Stores store = menu.getStore();
-                if (store != null) {
-                    cart.setStoreId(store.getId());
-                    cart.setStoreName(store.getName());
-                }
+            Menus menu =  menusRepository.findById(firstMenuId)
+                    .orElseThrow(() -> new CartsException(ErrorCode.MENU_NOT_FOUND, "존재하지 않는 메뉴입니다."));
+            Stores store = menu.getStore();
+            if (store != null) {
+                cart.setStoreId(store.getId());
+                cart.setStoreName(store.getName());
             }
         }
 
         // 이미 storeId가 있으면 storeName 채우기
         else if (cart.getStoreId() != null && cart.getStoreName() == null) {
-            var optionalStore = storeRepository.findById(cart.getStoreId());
-            if (optionalStore.isPresent()) {
-                Stores store = optionalStore.get();
-                cart.setStoreName(store.getName());
-            }
+            Stores store = storeRepository.findById(cart.getStoreId())
+                    .orElseThrow(() -> new CartsException(ErrorCode.STORE_NOT_FOUND, "존재하지 않는 가게입니다."));
+            cart.setStoreName(store.getName());
         }
 
         int cartTotalPrice = cart.getItems().stream()
@@ -152,29 +169,12 @@ public class CartsService {
 
     public CartsItemResponse addCartItem(Long userId, CartsItemRequest cartsItemRequest){
 
-        // 수량 체크
-        if (cartsItemRequest.getAmount() <= 0) {
-            throw new IllegalArgumentException("수량은 1 이상이어야 합니다.");
-        }
-
-        // 메뉴 조회
-        Menus menu = menusRepository.findById(cartsItemRequest.getMenuId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
-
-        // 메뉴 상태 체크
-        if (menu.getStatus() != Menus.MenuStatus.ACTIVE) {
-            throw new IllegalStateException("해당 메뉴("+menu.getName()+")는 주문할 수 없습니다.");
-        }
-
-        // 가게 조회
-        Stores store = menu.getStore();
-
-        // 영업 중인지 확인
-        validateStore(store);
+        // 수량, 메뉴, 가게 검증
+        Menus menu = validateMenuAndStore(cartsItemRequest.getMenuId(), cartsItemRequest.getAmount());
 
         // 해당 메뉴로 storeId 가져오기
-        Long storeId = store.getId();
-        String storeName = store.getName();
+        Long storeId = menu.getStore().getId();
+        String storeName = menu.getStore().getName();
 
         // 장바구니 조회
         CartsResponse cart = cartsRepository.getCart(userId);
@@ -189,7 +189,7 @@ public class CartsService {
 
         // 다른 가게 메뉴가 이미 존재하면 예외 처리
         if(cart.getStoreId() != null && !cart.getStoreId().equals(storeId)){
-            throw new RuntimeException("다른 가게의 메뉴가 존재합니다.");
+            throw new CartsException(ErrorCode.CONFLICT_STORE, "다른 가게의 메뉴가 존재합니다.");
         }
 
         // 해당 메뉴의 옵션 체크
@@ -251,32 +251,15 @@ public class CartsService {
         CartsResponse cart = getCart(userId);
 
         if (cart == null)
-            throw new IllegalArgumentException("장바구니가 존재하지 않습니다.");
+            throw new CartsException(ErrorCode.CART_EMPTY, "장바구니가 존재하지 않습니다.");
 
         CartsItemResponse item = cart.getItems().stream()
                 .filter(i -> i.getCartItemId().equals(cartItemId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 cartItemId입니다."));
+                .orElseThrow(() -> new CartsException(ErrorCode.CART_ITEM_NOT_FOUND, "존재하지 않는 cartItemId입니다."));
 
-        // 수량 체크
-        if (cartsItemRequest.getAmount() <= 0) {
-            throw new IllegalArgumentException("수량은 1 이상이어야 합니다.");
-        }
-
-        // 메뉴 조회
-        Menus menu = menusRepository.findById(item.getMenuId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 메뉴입니다."));
-
-        // 메뉴 상태 체크
-        if (menu.getStatus() != Menus.MenuStatus.ACTIVE) {
-            throw new IllegalStateException("해당 메뉴("+menu.getName()+")는 주문할 수 없습니다.");
-        }
-
-        // 가게 조회
-        Stores store = menu.getStore();
-
-        // 영업 중인지 확인
-        validateStore(store);
+        // 수량, 메뉴, 가게 검증
+        Menus menu = validateMenuAndStore(item.getMenuId(), cartsItemRequest.getAmount());
 
         // 해당 메뉴의 옵션 체크
         List<MenuOptions> optionGroups = menuOptionsRepository.findByMenuId(menu.getId());
@@ -338,10 +321,9 @@ public class CartsService {
         CartsItemResponse item = cart.getItems().stream()
                 .filter(i -> i.getCartItemId().equals(cartItemId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 cartItemId입니다."));
+                .orElseThrow(() -> new CartsException(ErrorCode.CART_ITEM_NOT_FOUND, "존재하지 않는 cartItemId입니다."));
 
         cart.getItems().remove(item);
-
         cartsRepository.saveCart(userId, cart);
     }
 
