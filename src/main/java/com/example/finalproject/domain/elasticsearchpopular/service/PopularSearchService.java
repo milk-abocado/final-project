@@ -17,7 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,6 +37,7 @@ public class PopularSearchService {
     /**
      * 인기 검색어 Redis 저장 (DB 기록 포함)
      */
+    @Transactional
     public SearchesResponseDto recordSearch(String keyword, String region, Long userId) {
         // 400: keyword/region 누락
         if (keyword == null || keyword.isBlank() || region == null || region.isBlank()) {
@@ -70,23 +73,16 @@ public class PopularSearchService {
         Searches saved = searchesRepository.save(searches);
 
         // PopularSearches DB 저장/업데이트
-        List<PopularSearches> popularList = popularSearchRepository
-                .findTopByRegion(region, PageRequest.of(0, 1))
-                .stream()
-                .filter(p -> p.getKeyword().equals(keyword))
-                .toList();
+        PopularSearches popular = popularSearchRepository
+                .findByRegionAndKeyword(region, keyword)
+                .orElse(new PopularSearches());
 
-        PopularSearches popular;
-        if (!popularList.isEmpty()) {
-            popular = popularList.get(0);
-            popular.setSearchCount(popular.getSearchCount() + 1);
-        } else {
-            popular = new PopularSearches();
-            popular.setKeyword(keyword);
-            popular.setRegion(region);
-            popular.setSearchCount(1);
-            popular.setRanking(0); // 나중에 동기화 시 업데이트 가능
-        }
+        popular.setKeyword(keyword);
+        popular.setRegion(region);
+        popular.setSearchCount(popular.getSearchCount() + 1); // 기존 count가 있으면 증가, 없으면 0 + 1
+        popular.setRanking(0); // 필요 시 업데이트
+        popular.setCreatedAt(LocalDateTime.now());
+
         popularSearchRepository.save(popular);
 
         // Redis 증가

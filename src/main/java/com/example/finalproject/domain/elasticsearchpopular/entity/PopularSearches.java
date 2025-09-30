@@ -21,6 +21,8 @@ public class PopularSearches {
 
     private String keyword;
     private String region;
+
+    @Column(name = "ranking")
     private int ranking;
 
     @Column(name = "search_count")

@@ -48,9 +48,10 @@ public class PopularSearchController {
         return Map.of("status", "ok");
     }
 
-    @GetMapping("/{region}")
-    public List<PopularSearches> getTop10ByRegion(@PathVariable String region) throws Exception {
-        int topN = 10;
+    @GetMapping
+    public List<PopularSearches> getTopByRegion(
+            @RequestParam String region,
+            @RequestParam(defaultValue = "10") int topN) {
         return popularSearchService.getTopFromDB(region, topN);
     }
 
