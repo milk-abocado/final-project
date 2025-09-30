@@ -9,7 +9,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "popular_search")
+@Table(name = "popular_searches")
 @Getter
 @Setter
 @NoArgsConstructor @AllArgsConstructor
@@ -21,8 +21,10 @@ public class PopularSearches {
 
     private String keyword;
     private String region;
-    private int search_count;
     private int ranking;
+
+    @Column(name = "search_count")
+    private int searchCount;
 
     @Column(name =  "created_at")
     private LocalDateTime createdAt;

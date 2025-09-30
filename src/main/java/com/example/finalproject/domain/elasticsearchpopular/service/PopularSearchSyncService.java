@@ -39,7 +39,7 @@ public class PopularSearchSyncService {
                                 .doc(Map.of(
                                         "region", region,
                                         "keyword", keyword,
-                                        "search_count", count,
+                                        "searchCount", count,
                                         "type", "redis" //Redis -> ES 동기화 시 색인
                                 )),
                         Map.class);
@@ -50,7 +50,7 @@ public class PopularSearchSyncService {
                         .document(Map.of(
                                 "region", region,
                                 "keyword", keyword,
-                                "search_count", count,
+                                "searchCount", count,
                                 "created_at", new Date(),
                                 "type", "redis" //신규 색인
                         ))

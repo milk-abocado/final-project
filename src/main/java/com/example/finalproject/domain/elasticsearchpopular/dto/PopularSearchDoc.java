@@ -14,6 +14,6 @@ import java.time.LocalDateTime;
 public class PopularSearchDoc {
     private String keyword;
     private String region;
-    private int search_count;
+    private int searchCount;
     private LocalDateTime createdAt;
 }

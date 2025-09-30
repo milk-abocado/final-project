@@ -6,6 +6,7 @@ import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch
 import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -32,13 +33,13 @@ public class PopularSearchIndexer {
 
         // 2. 지역별 Top10 가져와서 Elasticsearch에 색인
         for (String region : regions) {
-            List<PopularSearches> topSearches = repository.findTop10ByRegionOrderByCountDesc(region);
+            List<PopularSearches> topSearches = repository.findTopByRegion(region, PageRequest.of(0, 10));
 
             for (PopularSearches search : topSearches) {
                 PopularSearchDoc doc = PopularSearchDoc.builder()
                         .keyword(search.getKeyword())
                         .region(search.getRegion())
-                        .search_count(search.getSearch_count())
+                        .searchCount(search.getSearchCount())
                         .createdAt(search.getCreatedAt())
                         .build();
 
@@ -49,7 +50,7 @@ public class PopularSearchIndexer {
                         .document(Map.of(
                                 "region", search.getRegion(),
                                 "keyword", search.getKeyword(),
-                                "search_count", search.getSearch_count(),
+                                "search_count", search.getSearchCount(),
                                 "created_at", search.getCreatedAt(),
                                 "type", "db" //DB -> ES 인덱싱, 문서 생성
                         ))

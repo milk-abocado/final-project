@@ -14,6 +14,7 @@ import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSea
 import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchException;
 import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -68,6 +69,26 @@ public class PopularSearchService {
 
         Searches saved = searchesRepository.save(searches);
 
+        // PopularSearches DB 저장/업데이트
+        List<PopularSearches> popularList = popularSearchRepository
+                .findTopByRegion(region, PageRequest.of(0, 1))
+                .stream()
+                .filter(p -> p.getKeyword().equals(keyword))
+                .toList();
+
+        PopularSearches popular;
+        if (!popularList.isEmpty()) {
+            popular = popularList.get(0);
+            popular.setSearchCount(popular.getSearchCount() + 1);
+        } else {
+            popular = new PopularSearches();
+            popular.setKeyword(keyword);
+            popular.setRegion(region);
+            popular.setSearchCount(1);
+            popular.setRanking(0); // 나중에 동기화 시 업데이트 가능
+        }
+        popularSearchRepository.save(popular);
+
         // Redis 증가
         String redisKey = "popular:" + region + ":" + keyword;
         redisTemplate.opsForValue().increment(redisKey, 1);
@@ -103,7 +124,7 @@ public class PopularSearchService {
                                             ))
                                     )
                             )
-                            .sort(so -> so.field(f -> f.field("search_count").order(SortOrder.Desc))),
+                            .sort(so -> so.field(f -> f.field("searchCount").order(SortOrder.Desc))),
                     Map.class
             );
 
@@ -146,7 +167,7 @@ public class PopularSearchService {
                                     .must(m -> m.term(t -> t.field("region").value(region)))
                                     .must(m -> m.term(t -> t.field("type").value("redis")))
                             ))
-                            .sort(so -> so.field(f -> f.field("search_count").order(SortOrder.Desc))),
+                            .sort(so -> so.field(f -> f.field("searchCount").order(SortOrder.Desc))),
                     Map.class
             );
 
@@ -181,8 +202,8 @@ public class PopularSearchService {
             );
         }
 
-        List<PopularSearches> results = popularSearchRepository
-                .findTopNByRegionOrderByCountDesc(region, PageRequest.of(0, topN));
+        Pageable pageable = PageRequest.of(0, topN);
+        List<PopularSearches> results = popularSearchRepository.findTopByRegion(region, pageable);
 
         if (results.isEmpty()) {
             throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "DB에서 해당 region 데이터 없음");
