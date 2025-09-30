@@ -2,6 +2,8 @@ package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOrder;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
 import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchErrorCode;
 import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchException;
@@ -10,42 +12,32 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class PopularSearchService {
+
     private final ElasticsearchClient esClient;
-    private static final String INDEX = "popular_searches_index";
     private final PopularSearchRepository popularSearchRepository;
+    private static final String INDEX = "popular_searches_index";
 
     /**
-     * 검색어 자동완성: search_as_you_type 기반
+     * Elasticsearch 기반 자동완성 (search_as_you_type)
      */
-    public List<String> autoComplete(String keyword, String region) {
-        // ✅ 파라미터 검증
-        if (region == null || region.isBlank()) {
-            throw new PopularSearchException(
-                    PopularSearchErrorCode.BAD_REQUEST,
-                    "region 값이 비어있습니다."
-            );
-        }
-        if (keyword == null || keyword.isBlank()) {
-            throw new PopularSearchException(
-                    PopularSearchErrorCode.BAD_REQUEST,
-                    "keyword 값이 비어있습니다."
-            );
-        }
+    public List<String> autoComplete(String keyword, String region, int maxResults) {
+        validateParams(keyword, region);
 
         try {
             var resp = esClient.search(s -> s
                             .index(INDEX)
-                            .size(20)
+                            .size(Math.max(20, maxResults)) // 충분히 큰 수
                             .query(q -> q
                                     .bool(b -> b
                                             .must(m -> m.term(t -> t.field("region").value(region)))
-                                            .must(m -> m.term(t -> t.field("type").value("redis"))) //redis 기반만
+                                            .must(m -> m.term(t -> t.field("type").value("redis")))
                                             .must(m -> m.matchPhrasePrefix(mp -> mp
-                                                    .field("keyword") //search_as_you_type 필드
+                                                    .field("keyword")
                                                     .query(keyword)
                                             ))
                                     )
@@ -54,24 +46,20 @@ public class PopularSearchService {
                     Map.class
             );
 
-            // ✅ 결과 파싱 + 중복 제거
-            Set<String> uniqueResults = new LinkedHashSet<>();
-            for (var hit : resp.hits().hits()) {
-                uniqueResults.add(hit.source().get("keyword").toString());
-                if (uniqueResults.size() >= 10) break; //최대 10개
-            }
+            Set<String> uniqueResults = resp.hits().hits().stream()
+                    .map(hit -> hit.source().get("keyword").toString())
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
 
             if (uniqueResults.isEmpty()) {
-                throw new PopularSearchException(
-                        PopularSearchErrorCode.NOT_FOUND,
-                        "자동완성 결과 없음"
-                );
+                throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "자동완성 결과 없음");
             }
 
-            return new ArrayList<>(uniqueResults);
+            return uniqueResults.stream()
+                    .limit(maxResults)
+                    .collect(Collectors.toList());
 
         } catch (PopularSearchException e) {
-            throw e; // 그대로 전달
+            throw e;
         } catch (Exception e) {
             throw new PopularSearchException(
                     PopularSearchErrorCode.ELASTIC_ERROR,
@@ -80,72 +68,63 @@ public class PopularSearchService {
         }
     }
 
+    private void validateParams(String keyword, String region) {
+    }
+
     /**
-     * Elastic 조회, 지역별 Top10
+     * Elasticsearch Top N 조회
      */
-    public List<Map<String, Object>> getTop10ByRegion(String region) {
-        // ✅ 파라미터 검증
-        if (region == null || region.isBlank()) {
-            throw new PopularSearchException(
-                    PopularSearchErrorCode.BAD_REQUEST,
-                    "region 값이 비어있습니다."
-            );
-        }
+    public List<Map<String, Object>> getTopByRegion(String region, int topN) {
+        validateRegion(region);
 
         try {
-            var response = esClient.search(s -> s
+            var resp = esClient.search(s -> s
                             .index(INDEX)
-                            .size(10)
+                            .size(topN)
                             .query(q -> q.bool(b -> b
                                     .must(m -> m.term(t -> t.field("region").value(region)))
-                                    .must(m -> m.term(t -> t.field("type").value("redis"))) //Redis 기반만 필터링
+                                    .must(m -> m.term(t -> t.field("type").value("redis")))
                             ))
                             .sort(so -> so.field(f -> f.field("count").order(SortOrder.Desc))),
                     Map.class
             );
 
-            List<Map<String, Object>> top10 = new ArrayList<>();
-            for (var hit : response.hits().hits()) {
-                top10.add(hit.source());
+            List<Map<String, Object>> results = resp.hits().hits().stream()
+                    .map(hit -> (Map<String, Object>) hit.source())
+                    .collect(Collectors.toList());
+
+            if (results.isEmpty()) {
+                throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "해당 region에 대한 데이터 없음");
             }
 
-            if (top10.isEmpty()) {
-                throw new PopularSearchException(
-                        PopularSearchErrorCode.NOT_FOUND,
-                        "해당 region에 대한 데이터 없음"
-                );
-            }
-
-            return top10;
+            return results;
 
         } catch (PopularSearchException e) {
-            throw e; // 그대로 전달
+            throw e;
         } catch (Exception e) {
-            throw new PopularSearchException(
-                    PopularSearchErrorCode.ELASTIC_ERROR,
-                    "Elasticsearch 조회 실패: " + e.getMessage()
-            );
+            throw new PopularSearchException(PopularSearchErrorCode.ELASTIC_ERROR,
+                    "Elasticsearch 조회 실패: " + e.getMessage());
         }
     }
 
+    private void validateRegion(String region) {
+    }
+
     /**
-     * JPA 기반 조회 (DB)
+     * JPA(DB) 기반 Top N 조회
      */
-    public List<PopularSearch> getPopularKeywords(String region) {
-        if (region == null || region.isBlank()) {
+    public List<PopularSearch> getTopFromDB(String region, int topN) {
+        if  (region == null || region.isBlank()) {
             throw new PopularSearchException(
-                    PopularSearchErrorCode.BAD_REQUEST,
-                    "region 값이 비어있습니다."
+                    PopularSearchErrorCode.BAD_REQUEST, "region 값이 비어있습니다."
             );
         }
 
-        List<PopularSearch> results = popularSearchRepository.findTop10ByRegionOrderByCountDesc(region);
+        List<PopularSearch> results = popularSearchRepository
+                .findTopNByRegionOrderByCountDesc(region, PageRequest.of(0, topN));
 
         if (results.isEmpty()) {
-            throw new PopularSearchException(
-                    PopularSearchErrorCode.NOT_FOUND,
-                    "DB에서 해당 region 데이터 없음"
-            );
+            throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "DB에서 해당 region 데이터 없음");
         }
 
         return results;

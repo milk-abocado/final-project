@@ -20,12 +20,16 @@ import java.util.stream.Collectors;
 @Transactional
 @RequiredArgsConstructor
 public class SearchesService {
+
     private final SearchesRepository searchesRepository;
     private final UsersRepository usersRepository;
     private final StringRedisTemplate redisTemplate;
 
+    /**
+     * 검색 기록 저장 / 업데이트
+     */
     public SearchesResponseDto saveOrUpdate(SearchesRequestDto request) {
-        // ✅ 400 검증
+        // 400: keyword/region 누락, 길이 초과
         if (request.getKeyword() == null || request.getRegion() == null) {
             throw new SearchesException(SearchesErrorCode.BAD_REQUEST, "keyword/region 누락");
         }
@@ -33,27 +37,31 @@ public class SearchesService {
             throw new SearchesException(SearchesErrorCode.BAD_REQUEST, "길이 초과");
         }
 
-        // ✅ 401 검증
+        // 401: 인증 실패
         if (request.getUserId() == null) {
             throw new SearchesException(SearchesErrorCode.UNAUTHORIZED, "로그인 필요");
         }
 
-        // ✅ 404 검증
+        // 404: 존재하지 않는 userId
         if (!usersRepository.existsById(request.getUserId())) {
             throw new SearchesException(SearchesErrorCode.NOT_FOUND, "존재하지 않는 userId");
         }
 
-        // 검색 기록 찾기
-        Searches searches = searchesRepository.findByUserIdAndKeywordAndRegion(
-                request.getUserId(), request.getKeyword(), request.getRegion()).orElse(null);
+        Long userId = request.getUserId();
+        String keyword = request.getKeyword();
+        String region = request.getRegion();
 
-        if (searches != null) {
+        // 기존 검색 기록 조회
+        List<Searches> searchesList = searchesRepository.findAllByUserIdAndKeywordAndRegion(userId, keyword, region);
+        Searches searches;
+        if (!searchesList.isEmpty()) {
+            searches = searchesList.get(0); // 첫 번째 엔티티만 사용
             searches.setCount(searches.getCount() + 1);
         } else {
             searches = Searches.builder()
-                    .keyword(request.getKeyword())
-                    .region(request.getRegion())
-                    .userId(request.getUserId())
+                    .userId(userId)
+                    .keyword(keyword)
+                    .region(region)
                     .count(1)
                     .build();
         }
@@ -68,17 +76,23 @@ public class SearchesService {
                 .updatedAt(saved.getUpdatedAt())
                 .count(saved.getCount())
                 .build();
-    }
+        }
 
+    /**
+     * 특정 사용자 검색 기록 조회
+     */
     @Transactional(readOnly = true)
     public List<SearchesResponseDto> getMySearches(Long userId, String region, String sort) {
         if (userId == null) {
             throw new SearchesException(SearchesErrorCode.UNAUTHORIZED, "로그인 필요");
         }
 
-        List<Searches> searches = (region != null && !region.isEmpty())
-                ? searchesRepository.findByUserIdAndRegion(userId, region)
-                : searchesRepository.findByUserId(userId);
+        List<Searches> searches;
+        if (region != null && !region.isEmpty()) {
+            searches = searchesRepository.findByUserIdAndRegion(userId, region);
+        } else {
+            searches = searchesRepository.findByUserId(userId);
+        }
 
         Comparator<Searches> comparator;
         if (sort == null || sort.isBlank()) {
@@ -104,6 +118,9 @@ public class SearchesService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 특정 검색 기록 단건 조회
+     */
     @Transactional(readOnly = true)
     public SearchesResponseDto getSearchById(Long userId, Long id) {
         if (userId == null) {
@@ -127,6 +144,9 @@ public class SearchesService {
                 .build();
     }
 
+    /**
+     * 검색 기록 삭제
+     */
     @Transactional
     public void deleteSearches(Long userId, Long id) {
         if (userId == null) {
@@ -143,20 +163,55 @@ public class SearchesService {
         searchesRepository.delete(searches);
     }
 
-    // 인기 검색어 기록
-    public void recordSearch(String keyword, String region, Long userId) {
-        try {
-            SearchesRequestDto dto = new SearchesRequestDto(keyword, region, userId);
-            saveOrUpdate(dto); // DB 기록 재사용
-
-            // Redis 증가
-            String redisKey = "popular:" + region + ":" + keyword;
-            redisTemplate.opsForValue().increment(redisKey, 1);
-
-        } catch (SearchesException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new SearchesException(SearchesErrorCode.INTERNAL_ERROR, "검색 기록 저장 실패: " + e.getMessage());
+    /**
+     * 인기 검색어 Redis 저장 (DB 기록 포함)
+     */
+    public SearchesResponseDto recordSearch(String keyword, String region, Long userId) {
+        // 400: keyword/region 누락
+        if (keyword == null || keyword.isBlank() || region == null || region.isBlank()) {
+            throw new SearchesException(SearchesErrorCode.BAD_REQUEST, "keyword/region 누락");
         }
+        // 401: 로그인 검증
+        if (userId == null) {
+            throw new SearchesException(SearchesErrorCode.UNAUTHORIZED, "로그인 필요");
+        }
+        // 404: 존재하지 않는 userId
+        if (!usersRepository.existsById(userId)) {
+            throw new SearchesException(SearchesErrorCode.NOT_FOUND, "존재하지 않는 userId");
+        }
+
+        // DB 조회: 동일 조합 여러 개일 수 있으므로 List로 받음
+        List<Searches> searchesList = searchesRepository.findAllByUserIdAndKeywordAndRegion(userId, keyword, region);
+
+        Searches searches;
+        if (!searchesList.isEmpty()) {
+            // 첫 번째만 사용하고 count 증가
+            searches = searchesList.get(0);
+            searches.setCount(searches.getCount() + 1);
+        } else {
+            // 새로 생성
+            searches = Searches.builder()
+                    .keyword(keyword)
+                    .region(region)
+                    .userId(userId)
+                    .count(1)
+                    .build();
+        }
+
+        Searches saved = searchesRepository.save(searches);
+
+        // Redis 증가
+        String redisKey = "popular:" + region + ":" + keyword;
+        redisTemplate.opsForValue().increment(redisKey, 1);
+
+        // 결과 반환
+        return SearchesResponseDto.builder()
+                .id(saved.getId())
+                .keyword(saved.getKeyword())
+                .region(saved.getRegion())
+                .userId(saved.getUserId())
+                .updatedAt(saved.getUpdatedAt())
+                .count(saved.getCount())
+                .build();
     }
 }

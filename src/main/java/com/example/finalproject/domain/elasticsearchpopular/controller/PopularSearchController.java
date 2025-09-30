@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.elasticsearchpopular.controller;
 
+import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
 import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchService;
 import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchSyncService;
 import com.example.finalproject.domain.searches.service.SearchesService;
@@ -18,7 +19,16 @@ public class PopularSearchController {
     private final PopularSearchService popularSearchService;
     private final SearchesService searchesService;
     private final PopularSearchSyncService popularSearchSyncService;
-    
+
+
+    //DB Top N 조회
+    @GetMapping("/popular/db")
+    public List<PopularSearch> getTopFromDB(
+            @RequestParam String region,
+            @RequestParam(defaultValue = "10") int topN) {
+        return popularSearchService.getTopFromDB(region, topN);
+    }
+
     //수동 동기화
     @PostMapping("/sync")
     public Map<String, String> manualSync() throws Exception {
@@ -39,16 +49,18 @@ public class PopularSearchController {
     }
 
     @GetMapping("/{region}")
-    public List<Map<String, Object>> getTop10ByRegion(@PathVariable String region) throws Exception {
-        return popularSearchService.getTop10ByRegion(region);
+    public List<PopularSearch> getTop10ByRegion(@PathVariable String region) throws Exception {
+        int topN = 10;
+        return popularSearchService.getTopFromDB(region, topN);
     }
 
     @GetMapping("/autocomplete")
     public List<String> autoComplete(
             @RequestParam String keyword,
             @RequestParam String region
-    ) throws Exception {  // ← 여기 추가
-        return popularSearchService.autoComplete(keyword, region);
+    ) throws Exception {
+        int maxResults = 10; //필요에 따라 변경
+        return popularSearchService.autoComplete(keyword, region, maxResults);
     }
 
     public PopularSearchSyncService getPopularSearchSyncService() {

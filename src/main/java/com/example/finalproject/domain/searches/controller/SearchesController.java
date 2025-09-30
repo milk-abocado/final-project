@@ -103,21 +103,6 @@ public class SearchesController {
 
         return ResponseEntity.ok(response);
     }
-
-    private final PopularSearchService popularSearchService;
-
-    @GetMapping("/autocomplete")
-    public List<String> autoComplete(
-            @RequestParam String keyword,
-            @RequestParam String region) throws Exception {
-        return popularSearchService.autoComplete(keyword, region);
-    }
-
-    @GetMapping("/popular")
-    public List<PopularSearch> getPopularSearches(
-            @RequestParam String region) {
-        return popularSearchService.getPopularKeywords(region);
-    }
 }
 
 

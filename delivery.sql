@@ -260,13 +260,13 @@ CREATE TABLE searches (
 );
 
 -- elasticsearch 활용한 인기 검색어
-CREATE TABLE popular_searches (
+CREATE TABLE popular_search (
                                   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                  keyword VARCHAR(100) NOT NULL,
-                                  region VARCHAR(50),
-                                  count INT NOT NULL,
+                                  keyword VARCHAR(255) NOT NULL,
+                                  region VARCHAR(100) NOT NULL,
+                                  count INT NOT NULL DEFAULT 0,
                                   rank INT NOT NULL,
-                                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 7. 알림
