@@ -113,9 +113,9 @@ public class AuthService {
 
         try {
             Users u = userRepository.findByEmailIgnoreCaseAndDeletedFalse(emailLower)
-                    .orElseThrow(() -> AuthApiException.of(AuthErrorCode.UNAUTHORIZED));
+                    .orElseThrow(() -> AuthApiException.of(AuthErrorCode.ACCOUNT_NOT_FOUND));
             if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
-                throw AuthApiException.of(AuthErrorCode.UNAUTHORIZED);
+                throw AuthApiException.of(AuthErrorCode.INVALID_CREDENTIALS);
             }
 
             // ★ 단일 세션: 이미 sid가 있으면 거절
@@ -205,24 +205,25 @@ public class AuthService {
     // 로그아웃
     // ====================================================================
     public void logout(String accessToken, Long userId) {
+        // 0) 인증 불가
         if (userId == null) {
-            throw AuthApiException.of(AuthErrorCode.UNAUTHORIZED);
+            throw AuthApiException.of(AuthErrorCode.INVALID_ACCESS_TOKEN);
         }
 
-        // 토큰이 넘어온 경우: 유효성 + uid 일치 검증 (안 넘어오면 생략)
+        String sidFromToken = null;
+
+        // 1) 토큰이 왔다면: 유효성 + uid 일치 + sid 추출
         if (accessToken != null && !accessToken.isBlank()) {
             try {
-                // 유효성 검사 (서명/만료/형식)
                 if (!tokenProvider.validateAccessToken(accessToken)) {
                     throw AuthApiException.of(AuthErrorCode.INVALID_ACCESS_TOKEN);
                 }
 
-                // 토큰에서 uid 추출(우리가 만든 Authentication의 details에 uid가 들어있음)
                 var authentication = tokenProvider.getAuthenticationFromAccess(accessToken);
                 Object details = authentication.getDetails();
 
                 Long uidFromToken = null;
-                if (details instanceof java.util.Map<?,?> map) {
+                if (details instanceof java.util.Map<?, ?> map) {
                     Object v = map.get("uid");
                     if (v instanceof Number n) uidFromToken = n.longValue();
                     else if (v != null)       uidFromToken = Long.valueOf(v.toString());
@@ -230,22 +231,35 @@ public class AuthService {
                 if (uidFromToken == null || !uidFromToken.equals(userId)) {
                     throw AuthApiException.of(AuthErrorCode.INVALID_ACCESS_TOKEN);
                 }
+
+                // ▶ Access 클레임에서 sid 추출 (parseAccess 필요)
+                var claims = tokenProvider.parseAccess(accessToken).getBody();
+                sidFromToken = claims.get("sid", String.class);
+
             } catch (AuthApiException e) {
-                throw e; // 위에서 매핑한 코드 유지
+                throw e;
             } catch (Exception e) {
-                // 파싱/형변환 등 모든 예외를 잘못된 토큰으로 통일
                 throw AuthApiException.of(AuthErrorCode.INVALID_ACCESS_TOKEN);
             }
         }
 
-        // 실제 로그아웃 처리: refresh 폐기 + 현재 세션 sid 제거 (idempotent)
-        try {
-            tokenStore.revokeRefresh(userId);
-        } catch (Exception ignored) { /* 이미 없으면 무시 */ }
+        // 2) 현재 활성 sid 확인 (토큰이 없거나 sid를 못 뽑은 경우도 커버)
+        String currentSid = sidStore.get(userId); // 네가 이미 사용 중인 API
+        if (currentSid == null || currentSid.isBlank()) {
+            // “이미 로그아웃” 정책: 차단하려면 예외, 멱등으로 운영하려면 return;
+            throw AuthApiException.of(AuthErrorCode.ALREADY_LOGGED_OUT);
+            // 멱등 원하면 위 줄 대신: return;
+        }
 
-        try {
-            sidStore.evict(userId);
-        } catch (Exception ignored) { /* 이미 없으면 무시 */ }
+        // 3) 토큰이 왔는데 다른 세션의 sid라면(희귀 케이스) 방어
+        if (sidFromToken != null && !currentSid.equals(sidFromToken)) {
+            // 예: 오래된 기기의 토큰으로 로그아웃 시도
+            throw AuthApiException.of(AuthErrorCode.INVALID_ACCESS_TOKEN);
+        }
+
+        // 4) 실제 로그아웃 처리 (idempotent)
+        try { tokenStore.revokeRefresh(userId); } catch (Exception ignored) {}
+        try { sidStore.evict(userId);            } catch (Exception ignored) {}
 
         log.info("[LOGOUT] userId={} refresh revoked & sid evicted", userId);
     }

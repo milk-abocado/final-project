@@ -15,7 +15,7 @@ public enum AuthErrorCode {
     SESSION_EXISTS(HttpStatus.CONFLICT, "이미 로그인된 세션이 있습니다. 먼저 로그아웃하세요."),
 
     //로그아웃
-    UNAUTHORIZED(HttpStatus.CONFLICT,"이미 로그아웃됐습니다."),
+    ALREADY_LOGGED_OUT(HttpStatus.CONFLICT, "이미 로그아웃된 세션입니다."),
 
 
     // 토큰 갱신
