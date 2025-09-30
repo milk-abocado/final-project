@@ -16,6 +16,7 @@ import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSe
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -202,7 +203,7 @@ public class PopularSearchService {
         List<PopularSearches> results = popularSearchRepository.findTopByRegion(region, pageable);
 
         if (results.isEmpty()) {
-            throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "DB에서 해당 region 데이터 없음");
+            return Collections.emptyList();
         }
 
         return results;

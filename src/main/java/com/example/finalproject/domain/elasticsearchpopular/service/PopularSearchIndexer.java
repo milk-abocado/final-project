@@ -50,7 +50,7 @@ public class PopularSearchIndexer {
                         .document(Map.of(
                                 "region", search.getRegion(),
                                 "keyword", search.getKeyword(),
-                                "search_count", search.getSearchCount(),
+                                "searchCount", search.getSearchCount(),
                                 "created_at", search.getCreatedAt(),
                                 "type", "db" //DB -> ES 인덱싱, 문서 생성
                         ))
