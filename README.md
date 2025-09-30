@@ -36,7 +36,7 @@
 ---
 
 ## 🎨 와이어프레임
-- [👉 와이어프레임(Figma)](https://embed.figma.com/design/tlgh158R8qiESF2e0RF0OO/%EC%A0%9C%EB%AA%A9-%EC%97%86%E[…]9mA52gwSjSOg7LD-1&embed-host=notion&footer=false&theme=system)
+[👉 와이어프레임(Figma)](https://embed.figma.com/design/tlgh158R8qiESF2e0RF0OO/%EC%A0%9C%EB%AA%A9-%EC%97%86%E[…]9mA52gwSjSOg7LD-1&embed-host=notion&footer=false&theme=system)
 
 ---
 
