@@ -1,32 +1,14 @@
 package com.example.finalproject.domain.searches.exception;
 
-import org.springframework.http.HttpStatus;
-
 public class SearchesException extends RuntimeException {
-  private final HttpStatus status;
+  private final SearchesErrorCode errorCode;
 
-  public SearchesException(HttpStatus status, String message) {
+  public SearchesException(SearchesErrorCode errorCode, String message) {
     super(message);
-    this.status = status;
+    this.errorCode = errorCode;
   }
 
-  public HttpStatus getStatus() {
-    return status;
-  }
-
-  public static SearchesException badRequest(String message) {
-    return new SearchesException(HttpStatus.BAD_REQUEST, message);
-  }
-
-  public static SearchesException unauthorized(String message) {
-    return new SearchesException(HttpStatus.UNAUTHORIZED, message);
-  }
-
-  public static SearchesException forbidden(String message) {
-    return new SearchesException(HttpStatus.FORBIDDEN, message);
-  }
-
-  public static SearchesException notFound(String message) {
-    return new SearchesException(HttpStatus.NOT_FOUND, message);
+  public SearchesErrorCode getErrorCode() {
+    return errorCode;
   }
 }

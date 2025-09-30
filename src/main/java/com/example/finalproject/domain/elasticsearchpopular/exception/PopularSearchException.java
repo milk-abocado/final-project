@@ -4,13 +4,15 @@ public class PopularSearchException extends RuntimeException {
 
     private final PopularSearchErrorCode errorCode;
 
+    //enum만 넣어서 메시지 자동 사용
     public PopularSearchException(PopularSearchErrorCode errorCode) {
         super(errorCode.getMessage());
         this.errorCode = errorCode;
     }
 
-    public PopularSearchException(PopularSearchErrorCode errorCode, String detailMessage) {
-        super(detailMessage);
+    //enum + 커스텀 메시지
+    public PopularSearchException(PopularSearchErrorCode errorCode, String message) {
+        super(message);
         this.errorCode = errorCode;
     }
 

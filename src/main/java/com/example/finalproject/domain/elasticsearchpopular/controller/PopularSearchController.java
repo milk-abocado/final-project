@@ -4,6 +4,7 @@ import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearc
 import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchSyncService;
 import com.example.finalproject.domain.searches.service.SearchesService;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.BadRequestException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,7 +27,7 @@ public class PopularSearchController {
     }
 
     @PostMapping("/searches")
-    public Map<String, String> search(@RequestBody Map<String, String> body) {
+    public Map<String, String> search(@RequestBody Map<String, String> body) throws BadRequestException {
         String keyword = body.get("keyword");
         String region = body.get("region");
         Long userId = Long.parseLong(body.get("userId"));
