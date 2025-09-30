@@ -1,8 +1,8 @@
 package com.example.finalproject.domain.stores.controller;
 
 import com.example.finalproject.domain.stores.dto.response.StoreDashboardResponse;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.service.StoreDashboardService;
 import com.example.finalproject.domain.users.UserRole;
 import lombok.RequiredArgsConstructor;
@@ -60,7 +60,7 @@ public class StoreDashboardController {
                 .orElse(null);
         UserRole currentRole = UserRole.valueOf(Objects.requireNonNull(roleString).replace("ROLE_", ""));
         if (currentRole != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "가게 대시보드는 OWNER만 조회 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "가게 대시보드는 OWNER만 조회 가능합니다.");
         }
 
         // (2) 서비스 호출 (내부에서 소유권 검증 + 집계)

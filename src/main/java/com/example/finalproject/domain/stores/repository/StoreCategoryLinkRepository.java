@@ -29,4 +29,7 @@ public interface StoreCategoryLinkRepository extends JpaRepository<StoreCategory
 
     // 특정 가게의 모든 카테고리 삭제
     void deleteByStore_Id(Long storeId);
+
+    // 특정 가게에 카테고리가 하나라도 존재하는지 여부 확인
+    boolean existsByStore_Id(Long storeId);
 }

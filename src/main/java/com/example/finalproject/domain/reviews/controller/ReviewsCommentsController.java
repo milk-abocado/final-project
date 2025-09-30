@@ -4,8 +4,8 @@ import com.example.finalproject.domain.reviews.dto.request.ReviewsCommentsCreate
 import com.example.finalproject.domain.reviews.dto.request.ReviewsCommentsUpdateRequest;
 import com.example.finalproject.domain.reviews.dto.response.ReviewsCommentsResponse;
 import com.example.finalproject.domain.reviews.service.ReviewsCommentsService;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.users.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -40,13 +40,13 @@ public class ReviewsCommentsController {
      */
     private UserRole currentRole() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) throw new ApiException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+        if (authentication == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         String roleString = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .findFirst()
                 .orElse(null);
-        if (roleString == null) throw new ApiException(ErrorCode.UNAUTHORIZED, "권한이 없습니다.");
+        if (roleString == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "권한이 없습니다.");
         return UserRole.valueOf(roleString.replace("ROLE_", ""));
     }
 
@@ -64,7 +64,7 @@ public class ReviewsCommentsController {
             @RequestBody ReviewsCommentsCreateRequest req
     ) {
         if (currentRole() != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "리뷰 답글은 사장님만 작성할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "리뷰 답글은 사장님만 작성할 수 있습니다.");
         }
         return ResponseEntity.ok(reviewsCommentsService.create(storeId, reviewId, req));
     }
@@ -84,7 +84,7 @@ public class ReviewsCommentsController {
             @RequestBody ReviewsCommentsUpdateRequest req
     ) {
         if (currentRole() != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "리뷰 답글 수정은 사장님만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "리뷰 답글 수정은 사장님만 가능합니다.");
         }
         return ResponseEntity.ok(reviewsCommentsService.update(storeId, reviewId, req));
     }
@@ -102,7 +102,7 @@ public class ReviewsCommentsController {
             @PathVariable Long reviewId
     ) {
         if (currentRole() != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "리뷰 답글 삭제는 사장님만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "리뷰 답글 삭제는 사장님만 가능합니다.");
         }
         reviewsCommentsService.delete(storeId, reviewId);
         Map<String, String> response = new HashMap<>();

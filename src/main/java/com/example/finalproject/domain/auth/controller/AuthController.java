@@ -1,16 +1,22 @@
 package com.example.finalproject.domain.auth.controller;
 
-import com.example.finalproject.config.TokenProvider;
-import com.example.finalproject.domain.auth.dto.*;
+import com.example.finalproject.domain.auth.dto.request.*;
+import com.example.finalproject.domain.auth.exception.AuthApiException;
+import com.example.finalproject.domain.auth.exception.AuthErrorCode;
 import com.example.finalproject.domain.auth.service.AuthService;
 import com.example.finalproject.domain.users.entity.Users;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+@Validated
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -77,13 +83,35 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(
-            @RequestHeader(value = "Authorization", required = false) String bearer,
-            @RequestHeader("X-USER-ID") Long userId) {
+    public ResponseEntity<Map<String, Object>> logout(Authentication authentication) {
+        if (authentication == null || authentication.getCredentials() == null) {
+            throw AuthApiException.of(AuthErrorCode.INVALID_ACCESS_TOKEN);
+        }
+        String access = authentication.getCredentials().toString();
+        Long userId   = extractUid(authentication.getDetails());
 
-        String access = TokenProvider.stripBearer(bearer); // "Bearer " 제거 (null 허용)
-        authService.logout(access, userId);                // ◀ 두 개 인자 전달
+        authService.logout(access, userId);
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(Map.of("message", "로그아웃이 완료되었습니다."));
     }
-}
+
+    @SuppressWarnings("unchecked")
+    private Long extractUid(Object details) {
+        if (details instanceof Map<?, ?> map) {
+            Object v = map.get("uid");
+            if (v instanceof Number n) return n.longValue();
+            if (v != null) return Long.valueOf(v.toString());
+        }
+        // details가 Map이 아니거나 uid가 없으면 토큰이 비정상인 것으로 처리
+        throw AuthApiException.of(AuthErrorCode.INVALID_ACCESS_TOKEN);
+    }
+
+        @PostMapping("/force-logout")
+        public ResponseEntity<Map<String, Object>> forceLogout (@Valid @RequestBody ForceLogoutRequest req){
+            authService.forceLogoutWithoutToken(req);
+            return ResponseEntity.ok(Map.of(
+                    "terminated", true,
+                    "message", "이전 세션이 종료되었습니다. 다시 로그인하세요."
+            ));
+        }
+    }

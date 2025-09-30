@@ -19,6 +19,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ANY = {
             "/auth/signup",
             "/auth/login",
+            "/auth/logout",
+            "/auth/force-logout",
             "/oauth/**",
             "/public/**",
             "/auth/password/reset/code",

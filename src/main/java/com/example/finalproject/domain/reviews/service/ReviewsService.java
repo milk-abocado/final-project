@@ -12,8 +12,8 @@ import com.example.finalproject.domain.reviews.entity.ReviewsComments;
 import com.example.finalproject.domain.reviews.repository.ReviewsCommentsRepository;
 import com.example.finalproject.domain.reviews.repository.ReviewsRepository;
 import com.example.finalproject.domain.stores.entity.Stores;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
@@ -63,6 +63,7 @@ public class ReviewsService {
      */
     private Users getCurrentUserOrThrow() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new ApiException(ErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
         }
@@ -86,9 +87,9 @@ public class ReviewsService {
      */
     private Stores getReviewableStoreOrThrow(Long storeId) {
         Stores s = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
         boolean retired = (s.getRetiredAt() != null) || (s.getActive() != null && !s.getActive());
-        if (retired) throw new ApiException(ErrorCode.GONE, "폐업한 가게에는 리뷰를 작성/수정할 수 없습니다.");
+        if (retired) throw new StoresApiException(StoresErrorCode.GONE, "폐업한 가게에는 리뷰를 작성/수정할 수 없습니다.");
         return s;
     }
 
@@ -106,18 +107,18 @@ public class ReviewsService {
 
         // 별점 범위
         if (req.getRating() == null || req.getRating() < 1 || req.getRating() > 5) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "별점은 1~5점 사이여야 합니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "별점은 1~5점 사이여야 합니다.");
         }
 
         // 주문 검증
         Orders order = ordersRepository.findById(req.getOrderId())
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "주문을 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "주문을 찾을 수 없습니다."));
 
         if (!Objects.equals(order.getUser().getId(), me.getId())) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "본인의 주문에 대해서만 리뷰를 작성할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "본인의 주문에 대해서만 리뷰를 작성할 수 있습니다.");
         }
         if (!Objects.equals(order.getStore().getId(), storeId)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "해당 가게의 주문이 아닙니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "해당 가게의 주문이 아닙니다.");
         }
         if (order.getStatus() != Orders.Status.COMPLETED) {
             throw new ApiException(ErrorCode.BAD_REQUEST, "배달 완료된 주문에 대해서만 리뷰를 작성할 수 있습니다.");
@@ -125,7 +126,7 @@ public class ReviewsService {
 
         // 동일 주문+유저 중복 리뷰 방지
         if (reviewsRepository.existsByOrderIdAndUserId(order.getId(), me.getId())) {
-            throw new ApiException(ErrorCode.CONFLICT, "해당 주문에 대한 리뷰는 이미 작성되었습니다.");
+            throw new StoresApiException(StoresErrorCode.CONFLICT, "해당 주문에 대한 리뷰는 이미 작성되었습니다.");
         }
 
         Reviews review = Reviews.builder()
@@ -155,12 +156,12 @@ public class ReviewsService {
         int min = (minRating == null) ? 1 : minRating;
         int max = (maxRating == null) ? 5 : maxRating;
         if (min < 1 || max > 5 || min > max) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "별점 범위가 올바르지 않습니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "별점 범위가 올바르지 않습니다.");
         }
 
         // 가게 존재만 확인 (비활성/폐업도 과거 리뷰 열람 허용하려면 상태 체크 생략)
         storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean loggedIn = (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(String.valueOf(auth.getPrincipal())));
@@ -195,14 +196,14 @@ public class ReviewsService {
         int min = (minRating == null) ? 1 : minRating;
         int max = (maxRating == null) ? 5 : maxRating;
         if (min < 1 || max > 5 || min > max) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "별점 범위가 올바르지 않습니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "별점 범위가 올바르지 않습니다.");
         }
 
         // 소유 검증
         Stores store = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
         if (!Objects.equals(store.getOwner().getId(), me.getId())) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "자신의 가게 리뷰만 조회할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "자신의 가게 리뷰만 조회할 수 있습니다.");
         }
 
         return reviewsRepository
@@ -224,11 +225,11 @@ public class ReviewsService {
         int min = (minRating == null) ? 1 : minRating;
         int max = (maxRating == null) ? 5 : maxRating;
         if (min < 1 || max > 5 || min > max) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "별점 범위가 올바르지 않습니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "별점 범위가 올바르지 않습니다.");
         }
 
         storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
 
         Page<Reviews> reviewPage =
                 reviewsRepository.findByStoreIdAndIsDeletedFalseAndRatingBetweenOrderByCreatedAtDesc(
@@ -282,16 +283,16 @@ public class ReviewsService {
         Users me = getCurrentUserOrThrow();
 
         Reviews review = reviewsRepository.findById(reviewId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
 
         if (!Objects.equals(review.getStore().getId(), storeId)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "해당 가게의 리뷰만 수정할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "해당 가게의 리뷰만 수정할 수 있습니다.");
         }
         if (!Objects.equals(review.getUser().getId(), me.getId())) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "자신의 리뷰만 수정할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "자신의 리뷰만 수정할 수 있습니다.");
         }
         if (review.isDeleted()) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "삭제된 리뷰는 수정할 수 없습니다. 복구 후 다시 시도하세요.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "삭제된 리뷰는 수정할 수 없습니다. 복구 후 다시 시도하세요.");
         }
 
         // 가게가 현재 리뷰 가능한 상태인지 (정책에 따라 허용/차단)
@@ -300,16 +301,16 @@ public class ReviewsService {
         // 24h 제한
         LocalDateTime deadline = review.getCreatedAt().plusHours(USER_DELETE_WINDOW_HOURS);
         if (LocalDateTime.now().isAfter(deadline)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "작성 후 24시간이 지나 수정할 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "작성 후 24시간이 지나 수정할 수 없습니다.");
         }
 
         Integer rating = req.getRating();
         if (rating == null || rating < 1 || rating > 5) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "별점은 1~5점 사이여야 합니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "별점은 1~5점 사이여야 합니다.");
         }
         String content = req.getContent();
         if (content == null || content.isBlank()) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "리뷰 내용은 필수입니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "리뷰 내용은 필수입니다.");
         }
 
         // 이전 값 보관
@@ -337,18 +338,18 @@ public class ReviewsService {
         Users me = getCurrentUserOrThrow();
 
         Reviews review = reviewsRepository.findById(reviewId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
 
         if (!Objects.equals(review.getStore().getId(), storeId)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "해당 가게의 리뷰만 삭제할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "해당 가게의 리뷰만 삭제할 수 있습니다.");
         }
         if (!Objects.equals(review.getUser().getId(), me.getId())) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "자신의 리뷰만 삭제할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "자신의 리뷰만 삭제할 수 있습니다.");
         }
 
         LocalDateTime deadline = review.getCreatedAt().plusHours(USER_DELETE_WINDOW_HOURS);
         if (LocalDateTime.now().isAfter(deadline)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "작성 후 24시간이 지나 삭제할 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "작성 후 24시간이 지나 삭제할 수 없습니다.");
         }
 
         reviewsRepository.delete(review);
@@ -426,10 +427,11 @@ public class ReviewsService {
             return ResponseEntity.ok(Map.of("message", "이미 활성 상태인 리뷰입니다."));
         }
         if (review.getDeletedAt() == null) {
-            throw new ApiException(ErrorCode.CONFLICT, "삭제 시각 정보가 없어 복구할 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.CONFLICT, "삭제 시각 정보가 없어 복구할 수 없습니다.");
         }
         LocalDateTime expiry = review.getDeletedAt().plusYears(OWNER_RETENTION_YEARS);
         if (LocalDateTime.now().isAfter(expiry)) {
+
             throw new ApiException(ErrorCode.FORBIDDEN, "보관 기간(1년)이 지나 복구할 수 없습니다.");
         }
 

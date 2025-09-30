@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.notifications.controller;
 
+import com.example.finalproject.domain.notifications.exception.NotificationErrorCode;
 import com.example.finalproject.domain.notifications.exception.NotificationException;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
@@ -26,10 +27,10 @@ public class SseController {
     @GetMapping("/subscribe/{userId}")
     public SseEmitter subscribe(@PathVariable Long userId) {
         Users user = usersRepository.findById(userId)
-                .orElseThrow(() -> new NotificationException("유저 없음"));
+                .orElseThrow(() -> new NotificationException(NotificationErrorCode.USER_NOT_FOUND));
 
         if (Boolean.FALSE.equals(user.getAllowNotifications())) {
-            throw new NotificationException("해당 유저는 알림을 허용하지 않았습니다.");
+            throw new NotificationException(NotificationErrorCode.NOTIFICATION_NOT_ALLOWED);
         }
 
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);

@@ -8,8 +8,8 @@ import com.example.finalproject.domain.reviews.entity.ReviewsComments;
 import com.example.finalproject.domain.reviews.repository.ReviewsCommentsRepository;
 import com.example.finalproject.domain.reviews.repository.ReviewsRepository;
 import com.example.finalproject.domain.stores.entity.Stores;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
@@ -48,6 +48,7 @@ public class ReviewsCommentsService {
      * - 인증 없음 / DB에 사용자 없음 → UNAUTHORIZED 예외 발생
      */
     private Users getCurrentUserOrThrow() {
+
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
@@ -55,13 +56,18 @@ public class ReviewsCommentsService {
             throw new ApiException(ErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
         }
 
-        UserDetails principal = (UserDetails) authentication.getPrincipal();
-        String email = principal.getUsername();
-        String norm  = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+        Object principal = authentication.getPrincipal();
+        String email = (principal instanceof UserDetails ud) ? ud.getUsername() : authentication.getName();
+        return usersRepository.findByEmail(email)
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "사용자 정보를 찾을 수 없습니다."));
+
 
         // 이메일 대소문자 무시 검색(정규화 일관성 보장)
         return usersRepository.findByEmailIgnoreCase(norm)
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
+
     }
 
     /**
@@ -76,11 +82,13 @@ public class ReviewsCommentsService {
      */
     private Stores getOwnedStoreOrThrow(Long storeId, Long ownerId) {
         Stores store = storesRepository.findById(storeId)
+
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
 
         // NPE 방지: store.getOwner()가 null 이면 설계/데이터 무결성 이슈 → FORBIDDEN 대신 명확한 메시지 선택 가능
+
         if (!store.getOwner().getId().equals(ownerId)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "본인 소유 가게가 아닙니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "본인 소유 가게가 아닙니다.");
         }
         return store;
     }
@@ -110,21 +118,24 @@ public class ReviewsCommentsService {
 
         // 3) 리뷰 존재
         Reviews review = reviewsRepository.findById(reviewId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
 
         // 4) 리뷰-가게 일치(교차 접근 방지)
         if (!review.getStore().getId().equals(store.getId())) {
+
             throw new ApiException(ErrorCode.FORBIDDEN, "해당 리뷰는 본인 소유 가게의 리뷰가 아닙니다.");
         }
 
         // 5) 리뷰당 답글 1개 제한(soft delete 제외)
         if (reviewsCommentsRepository.existsByReview_IdAndIsDeletedFalse(reviewId)) {
-            throw new ApiException(ErrorCode.CONFLICT, "해당 리뷰에는 이미 사장님 답글이 존재합니다.");
+            throw new StoresApiException(StoresErrorCode.CONFLICT, "해당 리뷰에는 이미 사장님 답글이 존재합니다.");
         }
 
         // 6) content 유효성
         if (req.getContent() == null || req.getContent().isBlank()) {
+
             throw new ApiException(ErrorCode.BAD_REQUEST, "내용을 입력해 주세요.");
+
         }
 
         // 7) 엔티티 생성 및 저장
@@ -170,6 +181,7 @@ public class ReviewsCommentsService {
 
         // 4) 삭제되지 않은 내 답글 조회(리뷰 기준 1개 정책 전제)
         ReviewsComments reply = reviewsCommentsRepository
+
                 .findByReview_IdAndIsDeletedFalse(reviewId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "사장님 답글이 존재하지 않습니다."));
 
@@ -181,6 +193,7 @@ public class ReviewsCommentsService {
         // 6) 수정 허용 시간 초과 여부
         long hours = Duration.between(reply.getCreatedAt(), LocalDateTime.now()).toHours();
         if (hours > EDITABLE_HOURS) {
+
             throw new ApiException(ErrorCode.CONFLICT, "작성 후 3일이 지나 수정할 수 없습니다.");
         }
 
