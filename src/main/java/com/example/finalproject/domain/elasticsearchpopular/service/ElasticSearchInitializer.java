@@ -26,8 +26,8 @@ public class ElasticSearchInitializer {
                     .mappings(m -> m
                             .properties("keyword", p -> p.searchAsYouType(s -> s))
                             .properties("region", p -> p.keyword(k -> k))
-                            .properties("count", p -> p.integer(i -> i))
-                            .properties("rank", p -> p.integer(i -> i))
+                            .properties("search_count", p -> p.integer(i -> i))
+                            .properties("ranking", p -> p.integer(i -> i))
                             .properties("created_at", p -> p.date(d -> d))
                             .properties("type", p -> p.keyword(k -> k)) //type 필드 생성
                     )

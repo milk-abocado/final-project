@@ -1,12 +1,8 @@
 package com.example.finalproject.domain.searches.controller;
 
-import com.example.finalproject.config.CurrentUser;
-import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
-import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchService;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
-import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;

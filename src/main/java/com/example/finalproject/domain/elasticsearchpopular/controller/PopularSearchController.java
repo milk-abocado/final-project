@@ -1,6 +1,6 @@
 package com.example.finalproject.domain.elasticsearchpopular.controller;
 
-import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
+import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearches;
 import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchService;
 import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchSyncService;
 import com.example.finalproject.domain.searches.service.SearchesService;
@@ -23,7 +23,7 @@ public class PopularSearchController {
 
     //DB Top N 조회
     @GetMapping("/popular/db")
-    public List<PopularSearch> getTopFromDB(
+    public List<PopularSearches> getTopFromDB(
             @RequestParam String region,
             @RequestParam(defaultValue = "10") int topN) {
         return popularSearchService.getTopFromDB(region, topN);
@@ -49,7 +49,7 @@ public class PopularSearchController {
     }
 
     @GetMapping("/{region}")
-    public List<PopularSearch> getTop10ByRegion(@PathVariable String region) throws Exception {
+    public List<PopularSearches> getTop10ByRegion(@PathVariable String region) throws Exception {
         int topN = 10;
         return popularSearchService.getTopFromDB(region, topN);
     }

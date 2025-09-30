@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor @AllArgsConstructor
-public class PopularSearch {
+public class PopularSearches {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,8 +21,8 @@ public class PopularSearch {
 
     private String keyword;
     private String region;
-    private int count;
-    private int rank;
+    private int search_count;
+    private int ranking;
 
     @Column(name =  "created_at")
     private LocalDateTime createdAt;

@@ -8,7 +8,6 @@ import com.example.finalproject.domain.searches.exception.SearchesException;
 import com.example.finalproject.domain.searches.repository.SearchesRepository;
 import com.example.finalproject.domain.users.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +22,6 @@ public class SearchesService {
 
     private final SearchesRepository searchesRepository;
     private final UsersRepository usersRepository;
-    private final StringRedisTemplate redisTemplate;
 
     /**
      * 검색 기록 저장 / 업데이트
@@ -163,55 +161,6 @@ public class SearchesService {
         searchesRepository.delete(searches);
     }
 
-    /**
-     * 인기 검색어 Redis 저장 (DB 기록 포함)
-     */
-    public SearchesResponseDto recordSearch(String keyword, String region, Long userId) {
-        // 400: keyword/region 누락
-        if (keyword == null || keyword.isBlank() || region == null || region.isBlank()) {
-            throw new SearchesException(SearchesErrorCode.BAD_REQUEST, "keyword/region 누락");
-        }
-        // 401: 로그인 검증
-        if (userId == null) {
-            throw new SearchesException(SearchesErrorCode.UNAUTHORIZED, "로그인 필요");
-        }
-        // 404: 존재하지 않는 userId
-        if (!usersRepository.existsById(userId)) {
-            throw new SearchesException(SearchesErrorCode.NOT_FOUND, "존재하지 않는 userId");
-        }
-
-        // DB 조회: 동일 조합 여러 개일 수 있으므로 List로 받음
-        List<Searches> searchesList = searchesRepository.findAllByUserIdAndKeywordAndRegion(userId, keyword, region);
-
-        Searches searches;
-        if (!searchesList.isEmpty()) {
-            // 첫 번째만 사용하고 count 증가
-            searches = searchesList.get(0);
-            searches.setCount(searches.getCount() + 1);
-        } else {
-            // 새로 생성
-            searches = Searches.builder()
-                    .keyword(keyword)
-                    .region(region)
-                    .userId(userId)
-                    .count(1)
-                    .build();
-        }
-
-        Searches saved = searchesRepository.save(searches);
-
-        // Redis 증가
-        String redisKey = "popular:" + region + ":" + keyword;
-        redisTemplate.opsForValue().increment(redisKey, 1);
-
-        // 결과 반환
-        return SearchesResponseDto.builder()
-                .id(saved.getId())
-                .keyword(saved.getKeyword())
-                .region(saved.getRegion())
-                .userId(saved.getUserId())
-                .updatedAt(saved.getUpdatedAt())
-                .count(saved.getCount())
-                .build();
+    public void recordSearch(String region, String keyword, Long userId) {
     }
 }
