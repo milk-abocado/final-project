@@ -3,8 +3,8 @@ package com.example.finalproject.domain.stores.controller;
 import com.example.finalproject.domain.stores.dto.request.StoreNoticeRequest;
 import com.example.finalproject.domain.stores.dto.response.ApiMessageResponse;
 import com.example.finalproject.domain.stores.dto.response.StoreNoticeResponse;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.service.StoreNoticeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +47,7 @@ public class StoreNoticeController {
     ) {
         // 소유자가 아닐 경우, 공지 등록을 허용하지 않음
         if (!isOwner(storeId)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "공지 등록은 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "공지 등록은 OWNER만 가능합니다.");
         }
 
         // 공지 등록 서비스 호출
@@ -83,7 +83,7 @@ public class StoreNoticeController {
     ) {
         // 소유자가 아닐 경우, 공지 수정 허용하지 않음
         if (!isOwner(storeId)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "공지 수정은 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "공지 수정은 OWNER만 가능합니다.");
         }
         // 공지 수정 서비스 호출
         return ResponseEntity.ok(storeNoticeService.update(storeId, req));
@@ -97,7 +97,7 @@ public class StoreNoticeController {
     public ResponseEntity<ApiMessageResponse> delete(@PathVariable Long storeId) {
         // 소유자가 아닐 경우, 공지 삭제 허용하지 않음
         if (!isOwner(storeId)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "공지 삭제는 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "공지 삭제는 OWNER만 가능합니다.");
         }
 
         // 공지 삭제 서비스 호출
