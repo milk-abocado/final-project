@@ -1,10 +1,16 @@
 package com.example.finalproject.domain.searches.controller;
 
+import com.example.finalproject.config.CurrentUser;
+import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
+import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchService;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
+import io.jsonwebtoken.io.IOException;
+import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -13,19 +19,19 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/searches")
+@RequiredArgsConstructor
 public class SearchesController {
     private final SearchesService searchesService;
-
-    public SearchesController(SearchesService searchesService) {
-        this.searchesService = searchesService;
-    }
 
     //검색 기록 등록 기능
     @PostMapping
     public ResponseEntity<SearchesResponseDto> create(
             @RequestBody SearchesRequestDto request,
-            @RequestHeader Long userId
+            Authentication authentication
     ) throws BadRequestException {
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
         request.setUserId(userId);
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(201).body(response);
@@ -35,8 +41,11 @@ public class SearchesController {
     @PutMapping
     public ResponseEntity<SearchesResponseDto> update(
             @RequestBody SearchesRequestDto request,
-            @RequestHeader Long userId
+            Authentication authentication
     ) throws BadRequestException {
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
         request.setUserId(userId); //dto에 userId 주입
         SearchesResponseDto response = searchesService.saveOrUpdate(request);
         return ResponseEntity.status(200).body(response);
@@ -49,8 +58,11 @@ public class SearchesController {
     public ResponseEntity<List<SearchesResponseDto>> getMySearches(
             @RequestParam(required = false) String region,
             @RequestParam(required = false, defaultValue = "updatedAt") String sort,
-            @RequestHeader Long userId
+            Authentication authentication
     ) {
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
 
         List<SearchesResponseDto> result = searchesService.getMySearches(userId, region, sort);
 
@@ -66,8 +78,11 @@ public class SearchesController {
     @GetMapping("/{id}")
     public ResponseEntity<SearchesResponseDto> getSearchById(
             @PathVariable Long id,
-            @RequestHeader Long userId
+            Authentication authentication
     ) {
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
         SearchesResponseDto response = searchesService.getSearchById(userId, id);
         return ResponseEntity.ok(response);
     }
@@ -75,8 +90,11 @@ public class SearchesController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteSearches(
             @PathVariable Long id,
-            @RequestHeader Long userId
+            Authentication authentication
     ) {
+        Long userId = Long.valueOf(
+                ((Map<String, Object>) authentication.getDetails()).get("uid").toString()
+        );
         searchesService.deleteSearches(userId, id);
 
         Map<String, Object> response = new HashMap<>();
@@ -85,4 +103,21 @@ public class SearchesController {
 
         return ResponseEntity.ok(response);
     }
+
+    private final PopularSearchService popularSearchService;
+
+    @GetMapping("/autocomplete")
+    public List<String> autoComplete(
+            @RequestParam String keyword,
+            @RequestParam String region) throws Exception {
+        return popularSearchService.autoComplete(keyword, region);
+    }
+
+    @GetMapping("/popular")
+    public List<PopularSearch> getPopularSearches(
+            @RequestParam String region) {
+        return popularSearchService.getPopularKeywords(region);
+    }
 }
+
+

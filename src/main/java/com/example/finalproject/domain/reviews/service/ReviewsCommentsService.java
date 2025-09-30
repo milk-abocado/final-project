@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 /**
  * ReviewsCommentsService
@@ -48,12 +49,14 @@ public class ReviewsCommentsService {
      * - 인증 없음 / DB에 사용자 없음 → UNAUTHORIZED 예외 발생
      */
     private Users getCurrentUserOrThrow() {
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         Object principal = authentication.getPrincipal();
         String email = (principal instanceof UserDetails ud) ? ud.getUsername() : authentication.getName();
         return usersRepository.findByEmail(email)
                 .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "사용자 정보를 찾을 수 없습니다."));
+
     }
 
     /**

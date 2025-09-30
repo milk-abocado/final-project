@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -64,6 +65,7 @@ public class ReviewsService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
 
+
         Object principal = authentication.getPrincipal();
         String email;
         if (principal instanceof UserDetails ud) {
@@ -73,6 +75,7 @@ public class ReviewsService {
         }
         return usersRepository.findByEmail(email)
                 .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "사용자 정보를 찾을 수 없습니다."));
+
     }
 
     /**

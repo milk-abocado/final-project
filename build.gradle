@@ -25,6 +25,14 @@ repositories {
 }
 
 dependencies {
+    implementation "com.amazonaws:aws-java-sdk-s3:1.12.772"
+    implementation "org.springframework.boot:spring-boot-starter-web"
+
+    implementation 'com.mysql:mysql-connector-j'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -32,29 +40,30 @@ dependencies {
     implementation 'at.favre.lib:bcrypt:0.10.2'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-    implementation 'at.favre.lib:bcrypt:0.10.2'
-    implementation'org.springframework.security:spring-security-crypto'
-    implementation'org.springframework.boot:spring-boot-starter-validation'
-    implementation'org.springframework.boot:spring-boot-starter-mail'
-
-
     implementation 'com.slack.api:slack-api-client:1.38.0'
     runtimeOnly 'mysql:mysql-connector-java:8.0.33'
 
 
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-    implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.springframework.boot:spring-boot-starter-webflux' // WebClient
 
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     runtimeOnly'com.mysql:mysql-connector-j'
     runtimeOnly   'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly   'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    implementation 'co.elastic.clients:elasticsearch-java:9.0.1'
+    // Elasticsearch Low-Level REST client (HttpHost 등 필요)
+    implementation 'org.elasticsearch.client:elasticsearch-rest-client:8.15.0'
+    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
+    implementation 'jakarta.annotation:jakarta.annotation-api:2.1.1'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive' // Optional
+    implementation 'org.springframework.data:spring-data-redis'
+    implementation 'redis.clients:jedis'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity5:3.0.4.RELEASE'
 
 }
 

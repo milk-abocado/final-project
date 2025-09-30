@@ -17,4 +17,12 @@ public class SocialAccount {
 
     @Column(nullable = false) private String provider;   // kakao, naver
     @Column(nullable = false) private String providerId; // IdP의 고유 id
+
+    public Object getUsername() {
+        return null;
+    }
+
+    public Object getUserId() {
+        return null;
+    }
 }
