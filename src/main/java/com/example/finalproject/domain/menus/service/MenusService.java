@@ -291,6 +291,12 @@ public class MenusService {
         Menus menu = menusRepository.findByIdAndStoreId(menuId, storeId)
                 .orElseThrow(() -> new MenusException(ErrorCode.MENU_NOT_FOUND, "해당 가게의 메뉴가 존재하지 않습니다."));
 
+
+        // 삭제된 메뉴 체크
+        if (menu.getStatus() == Menus.MenuStatus.DELETED) {
+            throw new MenusException(ErrorCode.MENU_DELETED, "삭제된 메뉴는 조회할 수 없습니다.");
+        }
+
         // 가게 존재 여부 확인
         Stores store = storesRepository.findById(storeId)
                 .orElseThrow(() -> new MenusException(ErrorCode.STORE_NOT_FOUND, "존재하지 않는 가게입니다."));
