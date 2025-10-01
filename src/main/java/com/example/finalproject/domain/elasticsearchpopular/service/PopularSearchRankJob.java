@@ -37,8 +37,8 @@ public class PopularSearchRankJob {
      * 1시간마다 랭킹 갱신 (테스트 환경에서는 15초마다 실행)
      */
     @Scheduled(
-            fixedRateString = "${popular.rank.rate:15000}",
-            initialDelayString = "${popular.rank.initial:5000}"
+            fixedRate = 1000 * 60 * 60,   // 1시간마다 실행
+            initialDelay = 1000 * 60 * 5  // 5분 지연 후 첫 실행
     )
     @Transactional
     public void recomputeRanking() {

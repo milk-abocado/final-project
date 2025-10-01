@@ -31,8 +31,8 @@ public class PopularSearchSyncService {
      */
     //    @Scheduled(fixedRate = 1000 * 60 * 60) // 실제 운영: 1시간
     @Scheduled(
-            fixedRateString = "${popular.sync.rate:10000}",
-            initialDelayString = "${popular.sync.initial:0}"
+            fixedRate = 1000 * 60 * 60,   // 1시간마다 실행
+            initialDelay = 1000 * 60 * 5  // 5분 지연 후 첫 실행
     )
     public void syncPopularSearches() {
         // Redis에서 키 목록 가져오기

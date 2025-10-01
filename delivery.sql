@@ -309,10 +309,11 @@ CREATE TABLE popular_searches
 (
     id         BIGINT AUTO_INCREMENT PRIMARY KEY,
     keyword    VARCHAR(100) NOT NULL,
-    region     VARCHAR(50) NOT NULL,
+    region     VARCHAR(50),
     search_count      INT          NOT NULL DEFAULT 0,
     ranking       INT          NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 8. 알림
