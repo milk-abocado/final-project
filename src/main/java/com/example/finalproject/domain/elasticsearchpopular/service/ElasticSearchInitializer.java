@@ -1,9 +1,9 @@
 package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 
 @Component
@@ -26,9 +26,10 @@ public class ElasticSearchInitializer {
                     .mappings(m -> m
                             .properties("keyword", p -> p.searchAsYouType(s -> s))
                             .properties("region", p -> p.keyword(k -> k))
-                            .properties("count", p -> p.integer(i -> i))
-                            .properties("rank", p -> p.integer(i -> i))
+                            .properties("searchCount", p -> p.integer(i -> i))
+                            .properties("ranking", p -> p.integer(i -> i))
                             .properties("created_at", p -> p.date(d -> d))
+                            .properties("type", p -> p.keyword(k -> k)) //type 필드 생성
                     )
             );
             System.out.println("ElasticSearch index '" + INDEX + "' created with search_as_you_type mapping.");

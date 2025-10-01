@@ -93,6 +93,12 @@ public class TokenProvider {
         }
         return Keys.hmacShaKeyFor(bytes);
     }
+    public io.jsonwebtoken.Jws<io.jsonwebtoken.Claims> parseAccess(String accessToken) {
+        return io.jsonwebtoken.Jwts.parserBuilder()
+                .setSigningKey(/* access 서명키 */ this.accessKey)
+                .build()
+                .parseClaimsJws(accessToken);
+    }
 
     // ── Validate / Parse ────────────────────────────────────────────────
     public boolean validateAccessToken(String token)  { return validate(token, accessParser, "access"); }

@@ -4,9 +4,10 @@ import com.example.finalproject.domain.notifications.controller.SseController;
 import com.example.finalproject.domain.notifications.entity.Notification;
 import com.example.finalproject.domain.notifications.entity.Notification.Status;
 import com.example.finalproject.domain.notifications.entity.Notification.Type;
+import com.example.finalproject.domain.notifications.exception.NotificationErrorCode;
+import com.example.finalproject.domain.notifications.exception.NotificationException;
 import com.example.finalproject.domain.notifications.repository.NotificationRepository;
 import com.example.finalproject.domain.slack.service.SlackService;
-import com.example.finalproject.domain.notifications.controller.SseController;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +33,10 @@ public class NotificationService {
         } catch (Exception e) {
             notification.setStatus(Status.FAILED);
             notification.setErrorMessage(e.getMessage());
+            notificationRepository.save(notification);
+
+            // 예외 던져서 핸들러가 JSON 응답 내려주도록 함
+            throw new NotificationException(NotificationErrorCode.DELIVERY_FAILED);
         }
 
         notificationRepository.save(notification);
@@ -51,6 +56,9 @@ public class NotificationService {
         } catch (Exception e) {
             notification.setStatus(Status.FAILED);
             notification.setErrorMessage(e.getMessage());
+            notificationRepository.save(notification);
+
+            throw new NotificationException(NotificationErrorCode.DELIVERY_FAILED);
         }
 
         notificationRepository.save(notification);

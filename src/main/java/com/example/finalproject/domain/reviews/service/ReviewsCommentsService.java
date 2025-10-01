@@ -8,8 +8,8 @@ import com.example.finalproject.domain.reviews.entity.ReviewsComments;
 import com.example.finalproject.domain.reviews.repository.ReviewsCommentsRepository;
 import com.example.finalproject.domain.reviews.repository.ReviewsRepository;
 import com.example.finalproject.domain.stores.entity.Stores;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Locale;
 
 /**
  * ReviewsCommentsService
@@ -49,18 +48,12 @@ public class ReviewsCommentsService {
      * - 인증 없음 / DB에 사용자 없음 → UNAUTHORIZED 예외 발생
      */
     private Users getCurrentUserOrThrow() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
-        }
-
-        UserDetails principal = (UserDetails) authentication.getPrincipal();
-        String email = principal.getUsername();
-        String norm  = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
-
-        return usersRepository.findByEmailIgnoreCase(norm) 
-                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+        Object principal = authentication.getPrincipal();
+        String email = (principal instanceof UserDetails ud) ? ud.getUsername() : authentication.getName();
+        return usersRepository.findByEmailIgnoreCaseAndDeletedFalse(email)
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "사용자 정보를 찾을 수 없습니다."));
     }
 
     /**
@@ -75,9 +68,9 @@ public class ReviewsCommentsService {
      */
     private Stores getOwnedStoreOrThrow(Long storeId, Long ownerId) {
         Stores store = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
         if (!store.getOwner().getId().equals(ownerId)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "본인 소유 가게가 아닙니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "본인 소유 가게가 아닙니다.");
         }
         return store;
     }
@@ -100,20 +93,20 @@ public class ReviewsCommentsService {
         Stores store = getOwnedStoreOrThrow(storeId, owner.getId());
 
         Reviews review = reviewsRepository.findById(reviewId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
 
         // 리뷰-가게 일치 검증
         if (!review.getStore().getId().equals(store.getId())) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "리뷰와 가게 정보가 일치하지 않습니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "리뷰와 가게 정보가 일치하지 않습니다.");
         }
 
         // 리뷰당 답글 1개 제약(삭제되지 않은 댓글 존재 여부)
         if (reviewsCommentsRepository.existsByReview_IdAndIsDeletedFalse(reviewId)) {
-            throw new ApiException(ErrorCode.CONFLICT, "해당 리뷰에는 이미 사장님 답글이 존재합니다.");
+            throw new StoresApiException(StoresErrorCode.CONFLICT, "해당 리뷰에는 이미 사장님 답글이 존재합니다.");
         }
 
         if (req.getContent() == null || req.getContent().isBlank()) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "내용을 입력해주세요.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "내용을 입력해주세요.");
         }
 
         ReviewsComments reply = new ReviewsComments();
@@ -146,17 +139,17 @@ public class ReviewsCommentsService {
         // 내 가게(storeId) + 내 계정(ownerId) + 해당 리뷰(reviewId)의 "삭제되지 않은" 답글만 찾기
         ReviewsComments reply = reviewsCommentsRepository
                 .findByReview_IdAndStore_IdAndOwner_IdAndIsDeletedFalse(reviewId, storeId, owner.getId())
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "사장님 답글이 존재하지 않습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "사장님 답글이 존재하지 않습니다."));
 
         // 수정 가능 시간(3일) 체크
         LocalDateTime created = reply.getCreatedAt();
         long hours = Duration.between(created, LocalDateTime.now()).toHours();
         if (hours > EDITABLE_HOURS) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "작성 후 3일이 지나 수정할 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "작성 후 3일이 지나 수정할 수 없습니다.");
         }
 
         if (req.getContent() == null || req.getContent().isBlank()) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "내용을 입력해주세요.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "내용을 입력해주세요.");
         }
 
         reply.setContent(req.getContent().trim());
@@ -180,7 +173,7 @@ public class ReviewsCommentsService {
 
         ReviewsComments reply = reviewsCommentsRepository
                 .findByReview_IdAndStore_IdAndOwner_IdAndIsDeletedFalse(reviewId, storeId, owner.getId())
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "사장님 답글이 존재하지 않습니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "사장님 답글이 존재하지 않습니다."));
 
         reply.setDeleted(true);
         reply.setDeletedAt(LocalDateTime.now());

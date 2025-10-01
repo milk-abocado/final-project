@@ -1,12 +1,8 @@
 package com.example.finalproject.domain.searches.controller;
 
-import com.example.finalproject.config.CurrentUser;
-import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearch;
-import com.example.finalproject.domain.elasticsearchpopular.service.PopularSearchService;
 import com.example.finalproject.domain.searches.dto.SearchesRequestDto;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.service.SearchesService;
-import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;
@@ -102,21 +98,6 @@ public class SearchesController {
         response.put("id", id);
 
         return ResponseEntity.ok(response);
-    }
-
-    private final PopularSearchService popularSearchService;
-
-    @GetMapping("/autocomplete")
-    public List<String> autoComplete(
-            @RequestParam String keyword,
-            @RequestParam String region) throws Exception {
-        return popularSearchService.autoComplete(keyword, region);
-    }
-
-    @GetMapping("/popular")
-    public List<PopularSearch> getPopularSearches(
-            @RequestParam String region) {
-        return popularSearchService.getPopularKeywords(region);
     }
 }
 

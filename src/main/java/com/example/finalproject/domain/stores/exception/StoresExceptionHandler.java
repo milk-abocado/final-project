@@ -1,5 +1,8 @@
 package com.example.finalproject.domain.stores.exception;
 
+import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchException;
+import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchErrorCode;
+import com.example.finalproject.domain.searches.exception.SearchesException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -13,11 +16,11 @@ import java.util.Map;
 import java.util.Objects;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class StoresExceptionHandler {
 
     // 1) 비즈니스 예외는 그대로 포맷 유지
-    @ExceptionHandler(ApiException.class)
-    public ResponseEntity<?> handle(ApiException e) {
+    @ExceptionHandler(StoresApiException.class)
+    public ResponseEntity<?> handle(StoresApiException e) {
         return ResponseEntity.status(e.getCode().status)
                 .body(Map.of(
                         "error", e.getCode().name(),
@@ -46,5 +49,35 @@ public class GlobalExceptionHandler {
                 "error", "VALIDATION",
                 "messages", messages
         ));
+    }
+
+    // PopularSearchException 처리
+    @ExceptionHandler(PopularSearchException.class)
+    public ResponseEntity<Map<String, Object>> handlePopularSearchException(PopularSearchException ex) {
+        Map<String, Object> body = Map.of(
+                "status", ex.getErrorCode().getStatus().value(),
+                "message", ex.getMessage()
+        );
+        return ResponseEntity.status(ex.getErrorCode().getStatus()).body(body);
+    }
+
+    // SearchesException 처리
+    @ExceptionHandler(SearchesException.class)
+    public ResponseEntity<Map<String, Object>> handleSearchesException(SearchesException ex) {
+        Map<String, Object> body = Map.of(
+                "status", ex.getErrorCode().getStatus().value(),
+                "message", ex.getMessage()
+        );
+        return ResponseEntity.status(ex.getErrorCode().getStatus()).body(body);
+    }
+
+    // 일반 Exception 처리
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
+        Map<String, Object> body = Map.of(
+                "status", 500,
+                "message", ex.getMessage()
+        );
+        return ResponseEntity.status(500).body(body);
     }
 }
