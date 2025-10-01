@@ -2,18 +2,18 @@ package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOrder;
+import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearches;
+import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchErrorCode;
+import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchException;
+import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
 import com.example.finalproject.domain.searches.dto.SearchesResponseDto;
 import com.example.finalproject.domain.searches.entity.Searches;
 import com.example.finalproject.domain.searches.exception.SearchesErrorCode;
 import com.example.finalproject.domain.searches.exception.SearchesException;
 import com.example.finalproject.domain.searches.repository.SearchesRepository;
 import com.example.finalproject.domain.users.repository.UsersRepository;
-import org.springframework.data.domain.PageRequest;
-import com.example.finalproject.domain.elasticsearchpopular.entity.PopularSearches;
-import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchErrorCode;
-import com.example.finalproject.domain.elasticsearchpopular.exception.PopularSearchException;
-import com.example.finalproject.domain.elasticsearchpopular.repository.PopularSearchRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -23,6 +23,15 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * PopularSearchService
+ * 인기 검색어 처리 로직을 담당하는 서비스 클래스
+ * <p>
+ * - 검색 기록 저장 (Searches)
+ * - 인기 검색어 저장 및 갱신 (PopularSearches, Redis)
+ * - Elasticsearch 자동완성 및 Top-N 조회
+ * - DB 기반 인기 검색어 조회
+ */
 @Service
 @RequiredArgsConstructor
 public class PopularSearchService {
@@ -32,36 +41,50 @@ public class PopularSearchService {
     private final UsersRepository usersRepository;
     private final SearchesRepository searchesRepository;
     private final PopularSearchRepository popularSearchRepository;
+
     private static final String INDEX = "popular_searches_index";
 
     /**
-     * 인기 검색어 Redis 저장 (DB 기록 포함)
+     * 검색 기록을 저장하고 인기 검색어를 갱신하는 메소드
+     * <p>
+     * 동작 순서:
+     * 1. 파라미터 유효성 검증 (keyword, region, userId)
+     * 2. Searches 테이블에 사용자 검색 기록 저장/업데이트
+     * 3. PopularSearches 테이블에 해당 검색어 카운트 갱신
+     * 4. Redis 에도 검색 횟수 증가 반영
+     * 5. 최종적으로 저장된 Searches 엔티티 정보를 DTO로 반환
+     *
+     * @param keyword 검색 키워드
+     * @param region  검색 지역
+     * @param userId  사용자 ID
+     * @return 저장된 검색 기록에 대한 응답 DTO
      */
     @Transactional
     public SearchesResponseDto recordSearch(String keyword, String region, Long userId) {
-        // 400: keyword/region 누락
+        // keyword/region 누락 시 400
         if (keyword == null || keyword.isBlank() || region == null || region.isBlank()) {
-            throw new SearchesException(SearchesErrorCode.BAD_REQUEST, "keyword/region 누락");
+            throw new SearchesException(SearchesErrorCode.BAD_REQUEST, "keyword/region이 누락되었습니다.");
         }
-        // 401: 로그인 검증
+        // userId 누락 시 401
         if (userId == null) {
-            throw new SearchesException(SearchesErrorCode.UNAUTHORIZED, "로그인 필요");
+            throw new SearchesException(SearchesErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         }
-        // 404: 존재하지 않는 userId
+        // userId가 존재하지 않는 경우 404
         if (!usersRepository.existsById(userId)) {
-            throw new SearchesException(SearchesErrorCode.NOT_FOUND, "존재하지 않는 userId");
+            throw new SearchesException(SearchesErrorCode.NOT_FOUND, "존재하지 않는 userId입니다.");
         }
 
-        // DB 조회: 동일 조합 여러 개일 수 있으므로 List로 받음
-        List<Searches> searchesList = searchesRepository.findAllByUserIdAndKeywordAndRegion(userId, keyword, region);
+        // 사용자별 동일 keyword + region 조합 검색 이력 조회
+        List<Searches> searchesList =
+                searchesRepository.findAllByUserIdAndKeywordAndRegion(userId, keyword, region);
 
         Searches searches;
         if (!searchesList.isEmpty()) {
-            // 첫 번째만 사용하고 count 증가
+            // 기존 검색 이력이 있으면 count 증가
             searches = searchesList.get(0);
             searches.setCount(searches.getCount() + 1);
         } else {
-            // 새로 생성
+            // 검색 이력이 없으면 새로 생성
             searches = Searches.builder()
                     .keyword(keyword)
                     .region(region)
@@ -70,26 +93,32 @@ public class PopularSearchService {
                     .build();
         }
 
+        // 검색 로그 저장
         Searches saved = searchesRepository.save(searches);
 
-        // PopularSearches DB 저장/업데이트
+        // 인기 검색어 저장/업데이트
         PopularSearches popular = popularSearchRepository
                 .findByRegionAndKeyword(region, keyword)
-                .orElse(new PopularSearches());
+                .orElseGet(() -> {
+                    PopularSearches p = new PopularSearches();
+                    p.setRegion(region);
+                    p.setKeyword(keyword);
+                    p.setSearchCount(0);              // ← null 방지
+                    p.setRanking(0);                  // 별도 계산 전 기본값
+                    p.setCreatedAt(LocalDateTime.now());
+                    return p;
+                });
 
-        popular.setKeyword(keyword);
-        popular.setRegion(region);
-        popular.setSearchCount(popular.getSearchCount() + 1); // 기존 count가 있으면 증가, 없으면 0 + 1
-        popular.setRanking(0); // 필요 시 업데이트
-        popular.setCreatedAt(LocalDateTime.now());
+        popular.setSearchCount(popular.getSearchCount() + 1);
+        popular.setUpdatedAt(LocalDateTime.now());
 
         popularSearchRepository.save(popular);
 
-        // Redis 증가
+        // Redis 카운트 증가
         String redisKey = "popular:" + region + ":" + keyword;
         redisTemplate.opsForValue().increment(redisKey, 1);
 
-        // 결과 반환
+        // 응답 DTO 반환
         return SearchesResponseDto.builder()
                 .id(saved.getId())
                 .keyword(saved.getKeyword())
@@ -101,7 +130,15 @@ public class PopularSearchService {
     }
 
     /**
-     * Elasticsearch 기반 자동완성 (search_as_you_type)
+     * Elasticsearch 기반 자동 완성 기능
+     * - search_as_you_type 또는 matchPhrasePrefix 사용
+     * - region + keyword 조합으로 검색
+     * - 결과를 searchCount 내림차순 정렬
+     *
+     * @param keyword    검색 키워드
+     * @param region     검색 지역
+     * @param maxResults 최대 반환 개수
+     * @return 자동완성 후보 리스트
      */
     public List<String> autoComplete(String keyword, String region, int maxResults) {
         validateParams(keyword, region);
@@ -109,27 +146,26 @@ public class PopularSearchService {
         try {
             var resp = esClient.search(s -> s
                             .index(INDEX)
-                            .size(Math.max(20, maxResults)) // 충분히 큰 수
-                            .query(q -> q
-                                    .bool(b -> b
-                                            .must(m -> m.term(t -> t.field("region").value(region)))
-                                            .must(m -> m.term(t -> t.field("type").value("redis")))
-                                            .must(m -> m.matchPhrasePrefix(mp -> mp
-                                                    .field("keyword")
-                                                    .query(keyword)
-                                            ))
-                                    )
-                            )
+                            .size(Math.max(20, maxResults)) // 충분히 큰 수로 조회 후 상위 maxResults만 반환
+                            .query(q -> q.bool(b -> b
+                                    .must(m -> m.term(t -> t.field("region").value(region)))
+                                    .must(m -> m.term(t -> t.field("type").value("redis")))
+                                    .must(m -> m.matchPhrasePrefix(mp -> mp
+                                            .field("keyword")
+                                            .query(keyword)
+                                    ))
+                            ))
                             .sort(so -> so.field(f -> f.field("searchCount").order(SortOrder.Desc))),
                     Map.class
             );
 
+            // 중복 제거 및 순서 유지
             Set<String> uniqueResults = resp.hits().hits().stream()
-                    .map(hit -> hit.source().get("keyword").toString())
+                    .map(hit -> Objects.requireNonNull(hit.source()).get("keyword").toString())
                     .collect(Collectors.toCollection(LinkedHashSet::new));
 
             if (uniqueResults.isEmpty()) {
-                throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "자동완성 결과 없음");
+                throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "자동완성 결과가 없습니다.");
             }
 
             return uniqueResults.stream()
@@ -147,10 +183,15 @@ public class PopularSearchService {
     }
 
     private void validateParams(String keyword, String region) {
+        // keyword, region 유효성 검사 로직을 구현할 수 있는 자리
     }
 
     /**
-     * Elasticsearch Top N 조회
+     * Elasticsearch 기반 Top-N 인기 검색어 조회
+     *
+     * @param region 지역명
+     * @param topN   가져올 개수
+     * @return 인기 검색어 결과 리스트 (Map 구조)
      */
     public List<Map<String, Object>> getTopByRegion(String region, int topN) {
         validateRegion(region);
@@ -172,7 +213,7 @@ public class PopularSearchService {
                     .collect(Collectors.toList());
 
             if (results.isEmpty()) {
-                throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "해당 region에 대한 데이터 없음");
+                throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "해당 region에 대한 데이터가 존재하지 않습니다.");
             }
 
             return results;
@@ -180,21 +221,30 @@ public class PopularSearchService {
         } catch (PopularSearchException e) {
             throw e;
         } catch (Exception e) {
-            throw new PopularSearchException(PopularSearchErrorCode.ELASTIC_ERROR,
-                    "Elasticsearch 조회 실패: " + e.getMessage());
+            throw new PopularSearchException(
+                    PopularSearchErrorCode.ELASTIC_ERROR,
+                    "Elasticsearch 조회 실패: " + e.getMessage()
+            );
         }
     }
 
     private void validateRegion(String region) {
+        // region 유효성 검사 로직을 구현할 수 있는 자리
     }
 
     /**
-     * JPA(DB) 기반 Top N 조회
+     * DB 기반 Top-N 인기 검색어 조회
+     * - JPA Repository 이용
+     * - region 값이 비어 있으면 예외 발생
+     *
+     * @param region 지역명
+     * @param topN   가져올 개수
+     * @return 인기 검색어 리스트
      */
     public List<PopularSearches> getTopFromDB(String region, int topN) {
-        if  (region == null || region.isBlank()) {
+        if (region == null || region.isBlank()) {
             throw new PopularSearchException(
-                    PopularSearchErrorCode.BAD_REQUEST, "region 값이 비어있습니다."
+                    PopularSearchErrorCode.BAD_REQUEST, "region 값이 비어 있습니다."
             );
         }
 
@@ -202,7 +252,7 @@ public class PopularSearchService {
         List<PopularSearches> results = popularSearchRepository.findTopByRegion(region, pageable);
 
         if (results.isEmpty()) {
-            throw new PopularSearchException(PopularSearchErrorCode.NOT_FOUND, "DB에서 해당 region 데이터 없음");
+            return Collections.emptyList();
         }
 
         return results;
