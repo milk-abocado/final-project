@@ -373,7 +373,7 @@ cd final-project
 - **coupons** : 쿠폰 기능  
 - **point** : 포인트 기능  
 - **slack-notification** : 실시간 알림 기능 (slack)  
-- **searches** : 통합 검색 / 인기 검색어 기능
+- **searches1** : 통합 검색 / 인기 검색어 기능
 
 ### Commit Convention
 - ✨ feat: 새로운 기능 추가
