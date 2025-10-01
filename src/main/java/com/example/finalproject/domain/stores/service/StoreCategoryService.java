@@ -38,7 +38,7 @@ public class StoreCategoryService {
      * @throws StoresApiException 401/403/404 상황별 예외
      */
     private Stores ensureOwnerOfStore(Long storeId) {
-        // SecurityContext에서 Authentication 조회
+        // SecurityContext 에서 Authentication 조회
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || auth.getName() == null) {
             // 인증 정보가 없거나 비정상 → 401

@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -63,21 +62,17 @@ public class ReviewsService {
      */
     private Users getCurrentUserOrThrow() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
-        }
+        if (authentication == null) throw new StoresApiException(StoresErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
 
         Object principal = authentication.getPrincipal();
-        if (!(principal instanceof UserDetails userDetails)) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, "인증 정보가 올바르지 않습니다.");
+        String email;
+        if (principal instanceof UserDetails ud) {
+            email = ud.getUsername();
+        } else {
+            email = authentication.getName(); // fallback
         }
-
-        String email = userDetails.getUsername();
-        String norm = (email == null) ? null : email.trim().toLowerCase(Locale.ROOT);
-
-        return usersRepository.findByEmailIgnoreCase(norm)
-                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
+        return usersRepository.findByEmailIgnoreCaseAndDeletedFalse(email)
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "사용자 정보를 찾을 수 없습니다."));
     }
 
     /**
@@ -121,7 +116,7 @@ public class ReviewsService {
             throw new StoresApiException(StoresErrorCode.FORBIDDEN, "해당 가게의 주문이 아닙니다.");
         }
         if (order.getStatus() != Orders.Status.COMPLETED) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "배달 완료된 주문에 대해서만 리뷰를 작성할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "배달 완료된 주문에 대해서만 리뷰를 작성할 수 있습니다.");
         }
 
         // 동일 주문+유저 중복 리뷰 방지
@@ -366,30 +361,14 @@ public class ReviewsService {
     public ResponseEntity<Map<String, String>> deleteByOwner(Long storeId, Long reviewId) {
         Users owner = getCurrentUserOrThrow();
 
-        // 1) 가게 존재 확인 (404)
-        Stores store = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+        Reviews review = reviewsRepository
+                .findByIdAndStore_IdAndStore_Owner_Id(reviewId, storeId, owner.getId())
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.FORBIDDEN, "해당 가게의 본인 소유 리뷰만 삭제할 수 있습니다."));
 
-        // 2) 오너 권한 확인 (403)
-        if (!Objects.equals(store.getOwner().getId(), owner.getId())) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "본인 소유 가게의 리뷰만 처리할 수 있습니다.");
-        }
-
-        // 3) 리뷰 존재 확인 (404)
-        Reviews review = reviewsRepository.findById(reviewId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
-
-        // 4) 해당 가게 리뷰인지 확인 (404)
-        if (!Objects.equals(review.getStore().getId(), storeId)) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "해당 가게의 리뷰가 아닙니다.");
-        }
-
-        // 이미 삭제된 경우 안내
         if (review.isDeleted()) {
             return ResponseEntity.ok(Map.of("message", "이미 삭제된 리뷰입니다. 보관기간 내 복구 가능합니다."));
         }
 
-        // 소프트 삭제
         review.softDeleteByOwner();
         reviewsRepository.save(review);
         return ResponseEntity.ok(Map.of("message", "사용자 리뷰를 삭제했습니다. (1년 보관, 복구 가능)"));
@@ -404,25 +383,10 @@ public class ReviewsService {
     public ResponseEntity<Map<String, String>> restoreByOwner(Long storeId, Long reviewId) {
         Users owner = getCurrentUserOrThrow();
 
-        // 1) 가게 존재 확인 (404)
-        Stores store = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "가게를 찾을 수 없습니다."));
+        Reviews review = reviewsRepository
+                .findByIdAndStore_IdAndStore_Owner_Id(reviewId, storeId, owner.getId())
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.FORBIDDEN, "해당 가게의 본인 소유 리뷰만 복구할 수 있습니다."));
 
-        // 2) 오너 권한 확인 (403)
-        if (!Objects.equals(store.getOwner().getId(), owner.getId())) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "본인 소유 가게의 리뷰만 처리할 수 있습니다.");
-        }
-
-        // 3) 리뷰 존재 확인 (404)
-        Reviews review = reviewsRepository.findById(reviewId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
-
-        // 4) 해당 가게 리뷰인지 확인 (404)
-        if (!Objects.equals(review.getStore().getId(), storeId)) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "해당 가게의 리뷰가 아닙니다.");
-        }
-
-        // 상태/기한 검증
         if (!review.isDeleted()) {
             return ResponseEntity.ok(Map.of("message", "이미 활성 상태인 리뷰입니다."));
         }
@@ -431,11 +395,9 @@ public class ReviewsService {
         }
         LocalDateTime expiry = review.getDeletedAt().plusYears(OWNER_RETENTION_YEARS);
         if (LocalDateTime.now().isAfter(expiry)) {
-
-            throw new ApiException(ErrorCode.FORBIDDEN, "보관 기간(1년)이 지나 복구할 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "보관기간(1년)이 지나 복구할 수 없습니다.");
         }
 
-        // 복구
         review.restore();
         reviewsRepository.save(review);
         return ResponseEntity.ok(Map.of("message", "리뷰를 복구했습니다."));

@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalTime;
 import java.util.Collection;
-import java.util.Locale;
 
 /**
  * StoresService
@@ -69,8 +68,7 @@ public class StoresService {
         }
 
         // 2) OWNER 존재 검증 (이메일로 사용자 조회)
-
-        Users owner = usersRepository.findByEmail(username)
+        Users owner = usersRepository.findByEmailIgnoreCaseAndDeletedFalse(username)
                 .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "OWNER 계정이 존재하지 않습니다."));
 
         // 3) 공통 입력 검증 (자정 넘김 허용, 동일 시각 금지)

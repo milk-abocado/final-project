@@ -143,10 +143,8 @@ public class UserStarService {
         String email = auth.getName();
 
         // email 기반으로 Users 엔티티 조회, 없으면 → 401 Unauthorized
-        Users user = usersRepo.findByEmail(email)
+        Users user = usersRepo.findByEmailIgnoreCaseAndDeletedFalse(email)
                 .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
- .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
-
 
         // 현재 사용자의 권한 목록에서 "USER" 권한이 있는지 확인
         boolean isUser = auth.getAuthorities().stream()
