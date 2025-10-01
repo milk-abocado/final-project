@@ -12,4 +12,6 @@ public interface SearchesRepository extends JpaRepository<Searches,Long> {
     List<Searches> findByUserId(Long userId);
 
     List<Searches> findByUserIdAndRegion(Long userId, String region);
+
+    List<Searches> findAllByUserIdAndKeywordAndRegion(Long userId, String keyword, String region);
 }
