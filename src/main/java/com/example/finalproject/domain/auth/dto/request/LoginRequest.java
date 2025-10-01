@@ -1,4 +1,4 @@
-package com.example.finalproject.domain.auth.dto;
+package com.example.finalproject.domain.auth.dto.request;
 
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -8,6 +8,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EmailVerifyRequest {
+public class LoginRequest {
     @Email @NotBlank private String email;
-    @NotBlank private String code; }
+    @NotBlank private String password; }

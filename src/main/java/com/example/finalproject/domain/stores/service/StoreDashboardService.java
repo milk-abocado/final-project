@@ -5,8 +5,8 @@ import com.example.finalproject.domain.stores.dto.projection.ReviewRow;
 import com.example.finalproject.domain.stores.dto.projection.SummaryRow;
 import com.example.finalproject.domain.stores.dto.projection.TopMenuRow;
 import com.example.finalproject.domain.stores.dto.response.StoreDashboardResponse;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.repository.StoreDashboardRepository;
 import com.example.finalproject.domain.stores.repository.StoresRepository;
 import com.example.finalproject.domain.users.entity.Users;
@@ -63,7 +63,7 @@ public class StoreDashboardService {
     public StoreDashboardResponse getDashboard(Long storeId, LocalDate from, LocalDate to, String grain, int topN) {
         // (0) 파라미터 검증
         if (!"day".equals(grain) && !"month".equals(grain)) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "grain은 day 또는 month만 허용됩니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "grain은 day 또는 month만 허용됩니다.");
         }
 
         // 기본값: to가 null 이면 오늘(KST), from이 null 이면 to-30일
@@ -73,18 +73,18 @@ public class StoreDashboardService {
         from = (from == null) ? to.minusDays(30) : from;
 
         if (from.isAfter(to)) {
-            throw new ApiException(ErrorCode.BAD_REQUEST, "from은 to보다 이후일 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "from은 to보다 이후일 수 없습니다.");
         }
 
         // (1) 현재 사용자 조회 (SecurityContextHolder → email → Users)
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = (auth != null) ? auth.getName() : null;
-        Users me = usersRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "로그인 정보를 확인해 주세요."));
+        Users me = usersRepository.findByEmailIgnoreCaseAndDeletedFalse(email)
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.UNAUTHORIZED, "로그인 정보를 확인해 주세요."));
 
         // (2) 소유권 검증
         if (!storesRepository.existsByIdAndOwner_Id(storeId, me.getId())) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "본인 소유 가게만 조회할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "본인 소유 가게만 조회할 수 있습니다.");
         }
 
         // (3) 기간 경계 생성

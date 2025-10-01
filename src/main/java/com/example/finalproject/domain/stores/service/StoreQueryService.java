@@ -5,8 +5,8 @@ import com.example.finalproject.domain.stores.dto.response.MenuSummaryResponse;
 import com.example.finalproject.domain.stores.dto.response.StoreDetailResponse;
 import com.example.finalproject.domain.stores.dto.response.StoreListItemResponse;
 import com.example.finalproject.domain.stores.entity.Stores;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.geo.GeocodingPort;
 import com.example.finalproject.domain.stores.geo.LatLng;
 import com.example.finalproject.domain.stores.menu.MenuReader;
@@ -57,8 +57,8 @@ public class StoreQueryService {
         // 1) 주소만 들어온 경우: 지오코딩 수행해 좌표 보정
         if ((lat == null || lng == null) && address != null && !address.isBlank()) {
             LatLng p = geocoding.geocode(address)
-                    .orElseThrow(() -> new ApiException(
-                            ErrorCode.BAD_REQUEST, "유효한 주소를 입력하세요."
+                    .orElseThrow(() -> new StoresApiException(
+                            StoresErrorCode.BAD_REQUEST, "유효한 주소를 입력하세요."
                     ));
             lat = p.getLat();
             lng = p.getLng();
@@ -122,12 +122,12 @@ public class StoreQueryService {
     @Transactional
     public StoreDetailResponse getOne(Long storeId) {
         Stores s = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
 
         // 폐업 여부 체크: retiredAt 있거나 active=false 인 경우
         boolean isRetired = (s.getRetiredAt() != null) || (s.getActive() != null && !s.getActive());
         if (isRetired) {
-            throw new ApiException(ErrorCode.GONE, "폐업된 가게는 조회할 수 없습니다.");
+            throw new StoresApiException(StoresErrorCode.GONE, "폐업된 가게는 조회할 수 없습니다.");
         }
 
         // 메뉴 로딩
@@ -150,11 +150,11 @@ public class StoreQueryService {
         String email = authentication.getName();  // 인증된 사용자의 이메일 (또는 ID)
 
         Stores s = storesRepository.findById(storeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
+                .orElseThrow(() -> new StoresApiException(StoresErrorCode.NOT_FOUND, "존재하지 않는 가게입니다."));
 
         // 가게의 소유자가 아닌 경우 403 예외 처리
         if (!s.getOwner().getEmail().equals(email))  // 이메일로 비교
-            throw new ApiException(ErrorCode.FORBIDDEN, "본인 소유 가게만 조회할 수 있습니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "본인 소유 가게만 조회할 수 있습니다.");
 
         // 가게의 폐업 여부 확인
         boolean isRetired = (s.getRetiredAt() != null || !s.getActive());

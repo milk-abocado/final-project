@@ -2,7 +2,7 @@ package com.example.finalproject.domain.auth.controller;
 
 
 import com.example.finalproject.config.OAuthProps;
-import com.example.finalproject.domain.auth.dto.SocialProviderLoginRequest;
+import com.example.finalproject.domain.auth.dto.request.SocialProviderLoginRequest;
 import com.example.finalproject.domain.auth.service.AuthService;
 import com.example.finalproject.domain.auth.service.OAuthCodeClient;
 import lombok.RequiredArgsConstructor;

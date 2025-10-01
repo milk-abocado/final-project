@@ -2,6 +2,7 @@ package com.example.finalproject.domain.points.service;
 
 import com.example.finalproject.domain.points.dto.PointsDtos;
 import com.example.finalproject.domain.points.entity.Points;
+import com.example.finalproject.domain.points.exception.PointErrorCode;
 import com.example.finalproject.domain.points.exception.PointException;
 import com.example.finalproject.domain.points.repository.PointsRepository;
 import com.example.finalproject.domain.users.entity.Users;
@@ -17,12 +18,17 @@ public class PointsService {
 
     private final PointsRepository pointsRepository;
 
-    //포인트 적립
+    // 포인트 적립
     @Transactional
     public PointsDtos.PointResponse earnPoints(Users user, PointsDtos.EarnRequest request) {
         if (request.getAmount() <= 0) {
-            throw new PointException("포인트 적립 금액은 0보다 커야 합니다.");
+            throw new PointException(PointErrorCode.POINTS_INVALID_AMOUNT);
         }
+
+        // 추후 쿠폰 적용 주문일 경우 적립 제한 규칙 체크 가능
+        // if (request.isCouponApplied()) {
+        //     throw new PointException(PointErrorCode.POINTS_NOT_ACCUMULATED_WITH_COUPON);
+        // }
 
         Points points = new Points(user, request.getAmount(), request.getReason());
         Points saved = pointsRepository.save(points);
@@ -37,16 +43,16 @@ public class PointsService {
         return response;
     }
 
-     // 포인트 사용
+    // 포인트 사용
     @Transactional
     public PointsDtos.PointResponse usePoints(Users user, PointsDtos.UseRequest request) {
         int totalPoints = getTotalPoints(user.getId());
 
         if (request.getAmount() <= 0) {
-            throw new PointException("포인트 사용 금액은 0보다 커야 합니다.");
+            throw new PointException(PointErrorCode.POINTS_INVALID_AMOUNT);
         }
         if (totalPoints < request.getAmount()) {
-            throw new PointException("보유 포인트가 부족합니다.");
+            throw new PointException(PointErrorCode.POINTS_EXCEEDS_AVAILABLE);
         }
 
         Points points = new Points(user, -request.getAmount(), "포인트 사용");
@@ -62,7 +68,7 @@ public class PointsService {
         return response;
     }
 
-    //유저 포인트 조회 (잔액, 내역)
+    // 유저 포인트 조회 (잔액, 내역)
     @Transactional
     public PointsDtos.UserPointsResponse getUserPoints(Long userId) {
         List<Points> history = pointsRepository.findByUserId(userId);
@@ -90,7 +96,7 @@ public class PointsService {
         return response;
     }
 
-    //총 포인트
+    // 총 포인트 계산
     private int getTotalPoints(Long userId) {
         return pointsRepository.findByUserId(userId)
                 .stream()

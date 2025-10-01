@@ -7,7 +7,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -15,7 +14,7 @@ import java.util.Optional;
 public class RedisSessionIndexService implements SessionIndexService {
 
     private final StringRedisTemplate redis;
-    private final TokenProvider tokenProvider; // ← TokenProvider만 참조 (반대 방향 제거)
+    private final TokenProvider tokenProvider; // TokenProvider만 참조(순환 제거)
 
     private String key(Long userId) {
         return "sid:" + userId;
@@ -23,7 +22,7 @@ public class RedisSessionIndexService implements SessionIndexService {
 
     @Override
     public void set(Long userId, String sid, long ttlSeconds) {
-        if (userId == null || sid == null) return;
+        if (userId == null || sid == null || sid.isBlank()) return;
         redis.opsForValue().set(key(userId), sid, Duration.ofSeconds(ttlSeconds));
     }
 
@@ -39,37 +38,37 @@ public class RedisSessionIndexService implements SessionIndexService {
         redis.delete(key(userId));
     }
 
+    /** 인터페이스 시그니처에 맞춰 null 반환 */
     @Override
-    public Optional<String> get(Long userId) {
-        if (userId == null) return Optional.empty();
-        String v = redis.opsForValue().get(key(userId));
-        return Optional.ofNullable(v);
+    public String get(Long userId) {
+        if (userId == null) return null;
+        return redis.opsForValue().get(key(userId));
     }
 
     @Override
     public boolean isRefreshValid(Long userId, String refreshToken) {
         try {
-            if (userId == null || refreshToken == null || refreshToken.isBlank()) {
-                return false;
-            }
+            if (userId == null || refreshToken == null || refreshToken.isBlank()) return false;
+
             // 1) 토큰 파싱(서명/만료 검사 포함)
             Claims c = tokenProvider.parseRefresh(refreshToken);
 
-            // 2) 토큰 uid/sid 추출
+            // 2) uid/sid 추출
             Long uid = null;
             Object u = c.get("uid");
-            if (u != null) {
-                try { uid = (u instanceof Number) ? ((Number) u).longValue() : Long.parseLong(u.toString()); }
-                catch (Exception ignore) {}
+            if (u instanceof Number n) {
+                uid = n.longValue();
+            } else if (u != null) {
+                try { uid = Long.parseLong(u.toString()); } catch (NumberFormatException ignore) {}
             }
-            String sidInToken = (String) c.get("sid"); // 없을 수도 있음
+            String sidInToken = c.get("sid", String.class); // null 가능
 
             // 3) 저장된 sid 조회
-            String savedSid = redis.opsForValue().get(key(userId));
+            String savedSid = get(userId);
 
-            // 4) 규칙: uid 일치 && (sid가 있다면 sid도 일치) && 저장된 sid도 존재/일치
+            // 4) 규칙: uid 일치 && 저장된 sid 존재 && (토큰에 sid가 있으면 그것도 일치)
             if (uid == null || !userId.equals(uid)) return false;
-            if (savedSid == null) return false;               // 저장된 sid가 없다면 불허
+            if (savedSid == null || savedSid.isBlank()) return false;
             if (sidInToken != null && !savedSid.equals(sidInToken)) return false;
 
             return true;

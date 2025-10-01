@@ -1,16 +1,14 @@
 package com.example.finalproject.domain.coupons.service;
 
-
 import com.example.finalproject.domain.coupons.dto.CouponsDtos;
 import com.example.finalproject.domain.coupons.entity.CouponType;
 import com.example.finalproject.domain.coupons.entity.Coupons;
 import com.example.finalproject.domain.coupons.entity.UserCoupons;
+import com.example.finalproject.domain.coupons.exception.CouponErrorCode;
 import com.example.finalproject.domain.coupons.exception.CouponException;
 import com.example.finalproject.domain.coupons.repository.CouponsRepository;
 import com.example.finalproject.domain.coupons.repository.UserCouponsRepository;
 import com.example.finalproject.domain.users.entity.Users;
-
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,14 +23,13 @@ public class CouponsService {
     private final CouponsRepository couponsRepository;
     private final UserCouponsRepository userCouponsRepository;
 
-
-     //쿠폰 발급 (관리자용)
+    // 쿠폰 발급 (관리자용)
     @Transactional
     public CouponsDtos.CouponResponse createCoupon(CouponsDtos.CreateRequest request) {
-
         if (couponsRepository.existsByCode(request.getCode())) {
-            throw new CouponException("이미 존재하는 쿠폰 코드입니다: " + request.getCode());
+            throw new CouponException(CouponErrorCode.COUPON_CODE_CONFLICT);
         }
+
         Coupons coupon = new Coupons(
                 request.getCode(),
                 Enum.valueOf(CouponType.class, request.getType()),
@@ -55,15 +52,14 @@ public class CouponsService {
         return response;
     }
 
-
-     // 사용자 쿠폰 등록
+    // 사용자 쿠폰 등록
     @Transactional
     public CouponsDtos.UserCouponResponse registerUserCoupon(Users user, CouponsDtos.RegisterUserCouponRequest request) {
         Coupons coupon = couponsRepository.findByCode(request.getCouponCode())
-                .orElseThrow(() -> new CouponException("쿠폰이 존재하지 않습니다."));
+                .orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
 
         if (coupon.getExpireAt() != null && coupon.getExpireAt().isBefore(LocalDateTime.now())) {
-            throw new CouponException("만료된 쿠폰입니다.");
+            throw new CouponException(CouponErrorCode.COUPON_EXPIRED);
         }
 
         UserCoupons userCoupon = new UserCoupons(user, coupon);
@@ -81,11 +77,14 @@ public class CouponsService {
         return response;
     }
 
-
-     //유저 보유 쿠폰 조회
+    // 유저 보유 쿠폰 조회
     @Transactional(readOnly = true)
     public CouponsDtos.UserCouponListResponse getUserCoupons(Long userId) {
         List<UserCoupons> userCoupons = userCouponsRepository.findByUserId(userId);
+
+        if (userCoupons.isEmpty()) {
+            throw new CouponException(CouponErrorCode.USER_COUPONS_NOT_FOUND);
+        }
 
         List<CouponsDtos.UserCouponResponse> coupons = userCoupons.stream().map(uc -> {
             CouponsDtos.UserCouponResponse dto = new CouponsDtos.UserCouponResponse();
@@ -106,24 +105,23 @@ public class CouponsService {
         return response;
     }
 
+    // 쿠폰 사용 처리
+    @Transactional
+    public void useCoupon(Long userId, String couponCode, Long orderId) {
+        UserCoupons userCoupon = userCouponsRepository
+                .findByUserIdAndCouponCode(userId, couponCode)
+                .orElseThrow(() -> new CouponException(CouponErrorCode.USER_COUPON_NOT_FOUND));
 
-     // 쿠폰 사용 처리
-     @Transactional
-     public void useCoupon(Long userId, String couponCode, Long orderId) {
-         UserCoupons userCoupon = userCouponsRepository
-                 .findByUserIdAndCouponCode(userId, couponCode)
-                 .orElseThrow(() -> new CouponException("사용자 쿠폰이 존재하지 않습니다."));
+        if (userCoupon.isUsed()) {
+            throw new CouponException(CouponErrorCode.COUPON_ALREADY_USED);
+        }
 
-         if (userCoupon.isUsed()) {
-             throw new CouponException("이미 사용된 쿠폰입니다.");
-         }
+        if (userCoupon.getCoupon().getExpireAt() != null &&
+                userCoupon.getCoupon().getExpireAt().isBefore(LocalDateTime.now())) {
+            throw new CouponException(CouponErrorCode.COUPON_EXPIRED);
+        }
 
-         if (userCoupon.getCoupon().getExpireAt() != null &&
-                 userCoupon.getCoupon().getExpireAt().isBefore(LocalDateTime.now())) {
-             throw new CouponException("만료된 쿠폰입니다.");
-         }
-
-         userCoupon.useCoupon();
-         userCouponsRepository.save(userCoupon);
-     }
+        userCoupon.useCoupon();
+        userCouponsRepository.save(userCoupon);
+    }
 }

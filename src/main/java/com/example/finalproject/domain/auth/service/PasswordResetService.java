@@ -6,18 +6,19 @@ import com.example.finalproject.domain.auth.dto.password.SendResetCodeRequest;
 import com.example.finalproject.domain.auth.dto.password.VerifyResetCodeRequest;
 import com.example.finalproject.domain.users.entity.Users;
 import com.example.finalproject.domain.users.repository.UsersRepository;
+import com.example.finalproject.domain.auth.exception.AuthApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Optional;
+
+import static com.example.finalproject.domain.auth.exception.AuthErrorCode.*;
 
 @Service
 @RequiredArgsConstructor
@@ -40,10 +41,10 @@ public class PasswordResetService {
 
     private String genCode() {
         SecureRandom r = new SecureRandom();
-        int n = r.nextInt(1_000_000); // 0~999999
-        return String.format("%06d", n);
+        return String.format("%06d", r.nextInt(1_000_000));
     }
 
+    /** 비밀번호 재설정 코드 전송(익명) */
     public void sendCode(SendResetCodeRequest req) {
         String email = req.email().toLowerCase();
 
@@ -53,22 +54,23 @@ public class PasswordResetService {
             redis.expire(rateKey(email), SEND_RATE_TTL);
         }
         if (cnt != null && cnt > MAX_SEND_PER_MIN) {
-            throw new IllegalStateException("요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
+            // 비번 재설정 영역의 코드로 응답(429가 가장 이상적이지만, 코드 테이블 범위 내에서 처리)
+            throw AuthApiException.of(PASSWORD_RESET_INVALID_CODE);
         }
 
-        // 유저가 존재할 때만 실제 코드 저장/발송 (없어도 항상 같은 응답을 주어 정보 노출 방지)
-        Optional<Users> maybe = usersRepository.findByEmailIgnoreCase(email); // ★ repo 메서드
+        // 유저가 존재할 때만 실제 코드 저장/발송(없는 이메일에 대해서도 동일 응답으로 정보 노출 방지)
+        Optional<Users> maybe = usersRepository.findByEmailIgnoreCase(email);
         if (maybe.isPresent()) {
-
             String code = genCode();
             redis.opsForValue().set(codeKey(email), code, CODE_TTL);
             redis.delete(triesKey(email));
-            redis.delete(verifiedKey(email)); // 이전 검증 플래그 제거
+            redis.delete(verifiedKey(email)); // 이전 플래그 제거
             mailService.sendResetCode(email, code);
         }
+        // 존재하지 않는 경우에도 무음 성공(보안상)
     }
 
-    /** [선택] 코드 사전 검증 (익명) — 성공 시 검증 플래그 저장 */
+    /** [선택] 코드 사전 검증(익명) — 성공 시 검증 플래그 저장 */
     public boolean verifyCode(VerifyResetCodeRequest req) {
         String email = req.email().toLowerCase();
         String saved = redis.opsForValue().get(codeKey(email));
@@ -95,18 +97,30 @@ public class PasswordResetService {
         return ok;
     }
 
+    /** 코드 + 새 비밀번호로 최종 확정(익명) */
     @Transactional
     public void confirm(ConfirmResetPasswordRequest req) {
         String email = req.email().toLowerCase();
         String saved = redis.opsForValue().get(codeKey(email));
-        if (saved == null || !saved.equals(req.code())) {
+
+        if (saved == null) {
+            // 만료로 간주
+            throw AuthApiException.of(PASSWORD_RESET_EXPIRED);
+        }
+        if (!saved.equals(req.code())) {
             Long t = redis.opsForValue().increment(triesKey(email));
             if (t != null && t == 1) redis.expire(triesKey(email), CODE_TTL);
-            throw new IllegalArgumentException("코드가 유효하지 않거나 만료되었습니다.");
+            throw AuthApiException.of(PASSWORD_RESET_INVALID_CODE);
         }
 
         Users user = usersRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "가입된 이메일이 아닙니다."));
+                .orElseThrow(() -> AuthApiException.of(PASSWORD_RESET_EMAIL_NOT_FOUND));
+
+        // (선택) 정책 검사: 필요 시 강화
+        if (!isValidPassword(req.newPassword())) {
+            throw AuthApiException.of(PASSWORD_POLICY_VIOLATION);
+        }
+
         user.changePassword(passwordEncoder.encode(req.newPassword()));
         usersRepository.save(user);
 
@@ -115,30 +129,33 @@ public class PasswordResetService {
             redis.delete(triesKey(email));
             redis.delete(verifiedKey(email));
         } catch (DataAccessException ignored) {}
-
     }
 
+    /** 로그인 상태에서 비밀번호 변경(본인 인증 완료) */
     @Transactional
     public void change(String email, ChangePasswordRequest req) {
         email = email.toLowerCase();
 
         if (!req.newPassword().equals(req.confirmPassword())) {
-            throw new IllegalArgumentException("PASSWORD_MISMATCH");
+            // 코드 테이블 내에서 가장 가까운 항목 사용(메시지 오버라이드)
+            throw AuthApiException.of(PASSWORD_POLICY_VIOLATION);
+        }
+        if (!isValidPassword(req.newPassword())) {
+            throw AuthApiException.of(PASSWORD_POLICY_VIOLATION);
         }
 
         Users user = usersRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
+                .orElseThrow(() -> AuthApiException.of(PASSWORD_RESET_EMAIL_NOT_FOUND));
 
         if (!passwordEncoder.matches(req.oldPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("INVALID_OLD_PASSWORD");
+            throw AuthApiException.of(PASSWORD_OLD_MISMATCH);
         }
 
         user.changePassword(passwordEncoder.encode(req.newPassword()));
         usersRepository.save(user);
-
     }
 
-
+    /** 코드 검증(verified 플래그) 이후 한 번만 변경 */
     @Transactional
     public void changeAfterVerified(String email, ChangePasswordRequest req) {
         email = email.toLowerCase();
@@ -146,20 +163,23 @@ public class PasswordResetService {
         // 1) 검증 완료 플래그 확인
         String v = redis.opsForValue().get(verifiedKey(email));
         if (v == null) {
-            throw new IllegalStateException("NOT_VERIFIED"); // 코드 검증 미완료 또는 만료
+            throw AuthApiException.of(PASSWORD_RESET_EXPIRED);
         }
 
-        // 2) 새 비밀번호 확인
+        // 2) 새 비밀번호 확인/정책
         if (!req.newPassword().equals(req.confirmPassword())) {
-            throw new IllegalArgumentException("PASSWORD_MISMATCH");
+            throw AuthApiException.of(PASSWORD_POLICY_VIOLATION);
+        }
+        if (!isValidPassword(req.newPassword())) {
+            throw AuthApiException.of(PASSWORD_POLICY_VIOLATION);
         }
 
         // 3) 사용자 조회 & 옛 비밀번호 검사
         Users user = usersRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
+                .orElseThrow(() -> AuthApiException.of(PASSWORD_RESET_EMAIL_NOT_FOUND));
 
         if (!passwordEncoder.matches(req.oldPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("INVALID_OLD_PASSWORD");
+            throw AuthApiException.of(PASSWORD_OLD_MISMATCH);
         }
 
         // 4) 변경
@@ -168,5 +188,10 @@ public class PasswordResetService {
 
         // 5) 플래그 소진 (1회성)
         try { redis.delete(verifiedKey(email)); } catch (DataAccessException ignored) {}
+    }
+
+    /** 팀 정책에 맞춰 강화 가능 */
+    private boolean isValidPassword(String pw) {
+        return pw != null && pw.length() >= 8;
     }
 }

@@ -1,9 +1,9 @@
 package com.example.finalproject.domain.elasticsearchpopular.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 
 @Component
