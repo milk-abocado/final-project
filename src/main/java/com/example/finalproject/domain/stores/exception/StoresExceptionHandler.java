@@ -16,11 +16,11 @@ import java.util.Map;
 import java.util.Objects;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class StoresExceptionHandler {
 
     // 1) 비즈니스 예외는 그대로 포맷 유지
-    @ExceptionHandler(ApiException.class)
-    public ResponseEntity<?> handle(ApiException e) {
+    @ExceptionHandler(StoresApiException.class)
+    public ResponseEntity<?> handle(StoresApiException e) {
         return ResponseEntity.status(e.getCode().status)
                 .body(Map.of(
                         "error", e.getCode().name(),

@@ -3,8 +3,8 @@ package com.example.finalproject.domain.stores.controller;
 import com.example.finalproject.domain.stores.category.StoreCategory;
 import com.example.finalproject.domain.stores.dto.response.StoreDetailResponse;
 import com.example.finalproject.domain.stores.dto.response.StoreListItemResponse;
-import com.example.finalproject.domain.stores.exception.ApiException;
-import com.example.finalproject.domain.stores.exception.ErrorCode;
+import com.example.finalproject.domain.stores.exception.StoresApiException;
+import com.example.finalproject.domain.stores.exception.StoresErrorCode;
 import com.example.finalproject.domain.stores.service.StoreQueryService;
 import com.example.finalproject.domain.users.UserRole;
 import lombok.RequiredArgsConstructor;
@@ -56,7 +56,7 @@ public class StoreQueryController {
                 category = StoreCategory.from(categoryParam.trim());
             } catch (IllegalArgumentException e) {
                 // 잘못된 카테고리 값이면 400 반환
-                throw new ApiException(ErrorCode.BAD_REQUEST, "잘못된 카테고리: " + categoryParam);
+                throw new StoresApiException(StoresErrorCode.BAD_REQUEST, "잘못된 카테고리: " + categoryParam);
             }
         }
 
@@ -90,7 +90,7 @@ public class StoreQueryController {
 
         // OWNER 권한 확인
         if (currentRole != UserRole.OWNER) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "오너용 가게 단건 조회는 OWNER만 가능합니다.");
+            throw new StoresApiException(StoresErrorCode.FORBIDDEN, "오너용 가게 단건 조회는 OWNER만 가능합니다.");
         }
 
         return ResponseEntity.ok(storeQueryService.getOneForOwner(storeId));

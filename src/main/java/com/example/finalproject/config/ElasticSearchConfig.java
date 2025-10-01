@@ -14,10 +14,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ElasticSearchConfig {
 
-    @Value("${ELASTICSEARCH_URL}")
+    @Value("${elasticsearch.ELASTICSEARCH_URL}")
     private String elasticsearchUrl;
 
-    @Value("${ELASTIC_API_KEY}")
+    @Value("${elasticsearch.ELASTIC_API_KEY}")
     private String apiKey;
 
     @Bean

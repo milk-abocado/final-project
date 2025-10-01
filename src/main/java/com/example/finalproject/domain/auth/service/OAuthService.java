@@ -1,8 +1,11 @@
 package com.example.finalproject.domain.auth.service;
 
+import com.example.finalproject.domain.auth.exception.AuthApiException;
+import com.example.finalproject.domain.auth.exception.AuthErrorCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.*;
@@ -16,10 +19,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.time.Duration;
 import java.util.Map;
 
+@Slf4j
 @Component
 public class OAuthService {
 
-    // ── HTTP 및 사용자정보 API 기본 설정 ─────────────────────────────────────
     private final RestTemplate rest;
     private final String kakaoUserInfoUri;
     private final String naverUserInfoUri;
@@ -37,9 +40,9 @@ public class OAuthService {
         this.naverUserInfoUri = naverUserInfoUri;
     }
 
-    // ── OAuth 클라이언트 설정(토큰/인가/리다이렉트) ───────────────────────────
+    // ── OAuth 클라이언트 설정 ──
     @Value("${oauth.kakao.client-id}")      private String kakaoClientId;
-    @Value("${oauth.kakao.client-secret:}") private String kakaoClientSecret; // 없을 수도 있음
+    @Value("${oauth.kakao.client-secret:}") private String kakaoClientSecret;
     @Value("${oauth.kakao.redirect-uri}")   private String kakaoRedirectUri;
     @Value("${oauth.kakao.authorize-uri:https://kauth.kakao.com/oauth/authorize}")
     private String kakaoAuthorizeUri;
@@ -56,34 +59,55 @@ public class OAuthService {
     private String naverTokenUri;
     @Value("${oauth.naver.scope:}")         private String naverScope;
 
-    // ── 인가 URL 생성(프론트/브라우저를 인가 페이지로 보낼 때 사용) ───────────
+    // ========================= 예외 매핑 헬퍼 =========================
+    private static AuthApiException socialParam(String msg) {
+        return new AuthApiException(AuthErrorCode.SOCIAL_PARAM_INVALID, msg);
+    }
+
+    // 인가 URL 만들기
     public String buildAuthorizeUrl(String provider, String state) {
-        OAuthProvider p = OAuthProvider.from(provider);
+        final OAuthProvider p;
+        try {
+            p = OAuthProvider.from(provider);
+        } catch (Exception e) {
+            throw socialParam("provider 값이 올바르지 않습니다: " + provider);
+        }
+
         return switch (p) {
-            case KAKAO -> UriComponentsBuilder.fromHttpUrl(kakaoAuthorizeUri)
-                    .queryParam("response_type", "code")
-                    .queryParam("client_id", kakaoClientId)
-                    .queryParam("redirect_uri", kakaoRedirectUri)
-                    .queryParam("scope", kakaoScope)
-                    .queryParam("state", state)
-                    .build(true).toUriString();
+            case KAKAO -> {
+                if (isBlank(kakaoClientId) || isBlank(kakaoRedirectUri))
+                    throw socialParam("kakao 클라이언트 설정 누락(client-id/redirect-uri)");
+                yield UriComponentsBuilder.fromHttpUrl(kakaoAuthorizeUri)
+                        .queryParam("response_type", "code")
+                        .queryParam("client_id", kakaoClientId)
+                        .queryParam("redirect_uri", kakaoRedirectUri)
+                        .queryParam("scope", kakaoScope)
+                        .queryParam("state", state)
+                        .build(true).toUriString();
+            }
             case NAVER -> {
+                if (isBlank(naverClientId) || isBlank(naverRedirectUri))
+                    throw socialParam("naver 클라이언트 설정 누락(client-id/redirect-uri)");
                 var b = UriComponentsBuilder.fromHttpUrl(naverAuthorizeUri)
                         .queryParam("response_type", "code")
                         .queryParam("client_id", naverClientId)
                         .queryParam("redirect_uri", naverRedirectUri)
                         .queryParam("state", state);
-                if (naverScope != null && !naverScope.isBlank()) {
-                    b.queryParam("scope", naverScope);
-                }
+                if (!isBlank(naverScope)) b.queryParam("scope", naverScope);
                 yield b.build(true).toUriString();
             }
         };
     }
 
-    // ── 콜백의 code를 access_token으로 교환 ──────────────────────────────────
+    // code → token 교환
     public TokenResponse exchangeCodeForToken(String provider, String code, String state) {
-        OAuthProvider p = OAuthProvider.from(provider);
+        final OAuthProvider p;
+        try {
+            p = OAuthProvider.from(provider);
+        } catch (Exception e) {
+            throw socialParam("provider 값이 올바르지 않습니다: " + provider);
+        }
+        if (isBlank(code)) throw socialParam("authorization code 가 비어있습니다.");
 
         HttpHeaders h = new HttpHeaders();
         h.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -97,13 +121,11 @@ public class OAuthService {
             return switch (p) {
                 case KAKAO -> {
                     form.add("client_id", kakaoClientId);
-                    if (kakaoClientSecret != null && !kakaoClientSecret.isBlank()) {
-                        form.add("client_secret", kakaoClientSecret);
-                    }
+                    if (!isBlank(kakaoClientSecret)) form.add("client_secret", kakaoClientSecret);
                     form.add("redirect_uri", kakaoRedirectUri);
                     ResponseEntity<TokenResponse> resp = rest.exchange(
                             kakaoTokenUri, HttpMethod.POST, new HttpEntity<>(form, h), TokenResponse.class);
-                    yield resp.getBody();
+                    yield nonNullBody(resp, "kakao token 교환 실패");
                 }
                 case NAVER -> {
                     form.add("client_id", naverClientId);
@@ -112,17 +134,24 @@ public class OAuthService {
                     form.add("state", state != null ? state : "");
                     ResponseEntity<TokenResponse> resp = rest.exchange(
                             naverTokenUri, HttpMethod.POST, new HttpEntity<>(form, h), TokenResponse.class);
-                    yield resp.getBody();
+                    yield nonNullBody(resp, "naver token 교환 실패");
                 }
             };
         } catch (RestClientResponseException e) {
-            throw new IllegalStateException("TOKEN_EXCHANGE_FAILED", e);
+            throw socialParam("token 교환 실패(" + p.name().toLowerCase() + "): " + e.getRawStatusCode());
         }
     }
 
-    // ── 액세스 토큰으로 사용자 정보 조회(기존 로직 유지) ───────────────────────
+    // 액세스 토큰으로 유저 정보
     public SocialUserInfo fetchUser(String provider, String accessToken) {
-        OAuthProvider p = OAuthProvider.from(provider);
+        final OAuthProvider p;
+        try {
+            p = OAuthProvider.from(provider);
+        } catch (Exception e) {
+            throw socialParam("provider 값이 올바르지 않습니다: " + provider);
+        }
+        if (isBlank(accessToken)) throw socialParam("access token 이 비어있습니다.");
+
         return switch (p) {
             case KAKAO -> fetchKakao(accessToken);
             case NAVER -> fetchNaver(accessToken);
@@ -136,9 +165,7 @@ public class OAuthService {
         try {
             ResponseEntity<Map> resp = rest.exchange(
                     kakaoUserInfoUri, HttpMethod.GET, new HttpEntity<>(h), Map.class);
-
-            Map<?, ?> body = resp.getBody();
-            if (body == null) throw new IllegalStateException("empty kakao body");
+            Map<?, ?> body = nonNullBody(resp, "kakao 사용자정보 응답 없음/형식 오류");
             String id = String.valueOf(body.get("id"));
 
             String email = null, nickname = null;
@@ -154,7 +181,7 @@ public class OAuthService {
             }
             return new SocialUserInfo("kakao", id, email, nickname);
         } catch (RestClientResponseException e) {
-            throw new IllegalStateException("KAKAO_TOKEN_INVALID", e);
+            throw socialParam("유효하지 않은 kakao access token");
         }
     }
 
@@ -165,26 +192,35 @@ public class OAuthService {
         try {
             ResponseEntity<Map> resp = rest.exchange(
                     naverUserInfoUri, HttpMethod.GET, new HttpEntity<>(h), Map.class);
-
-            Map<?, ?> body = resp.getBody();
-            if (body == null) throw new IllegalStateException("empty naver body");
+            Map<?, ?> body = nonNullBody(resp, "naver 사용자정보 응답 없음/형식 오류");
             Object response = body.get("response");
-            if (!(response instanceof Map<?, ?> r)) throw new IllegalStateException("invalid naver body");
+            if (!(response instanceof Map<?, ?> r))
+                throw socialParam("naver 사용자정보 형식이 올바르지 않습니다.");
             String id = String.valueOf(r.get("id"));
             String email = r.get("email") != null ? String.valueOf(r.get("email")) : null;
             String nickname = r.get("nickname") != null ? String.valueOf(r.get("nickname")) : null;
             return new SocialUserInfo("naver", id, email, nickname);
         } catch (RestClientResponseException e) {
-            throw new IllegalStateException("NAVER_TOKEN_INVALID", e);
+            throw socialParam("유효하지 않은 naver access token");
         }
     }
-    // ── DTOs ──────────────────────────────────────────────────────────────
+
+    private static <T> T nonNullBody(ResponseEntity<T> resp, String stageMsg) {
+        if (resp == null || resp.getBody() == null) {
+            throw socialParam(stageMsg);
+        }
+        return resp.getBody();
+    }
+
+    private static boolean isBlank(String s) { return s == null || s.isBlank(); }
+
+    // DTOs
     @Getter @AllArgsConstructor
     public static class SocialUserInfo {
-        private final String provider;    // kakao | naver
-        private final String providerId;  // string
-        private final String email;       // may be null
-        private final String nickname;    // may be null
+        private final String provider;
+        private final String providerId;
+        private final String email;
+        private final String nickname;
     }
 
     @Getter @NoArgsConstructor

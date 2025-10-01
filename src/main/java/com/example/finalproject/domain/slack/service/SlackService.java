@@ -1,5 +1,6 @@
 package com.example.finalproject.domain.slack.service;
 
+import com.example.finalproject.domain.slack.exception.SlackErrorCode;
 import com.example.finalproject.domain.slack.exception.SlackException;
 import com.slack.api.Slack;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +40,8 @@ public class SlackService {
                     .text(text)
             );
         } catch (Exception e) {
-            throw new SlackException("메세지 전송을 실패하였습니다.", e);
+            throw new SlackException(SlackErrorCode.SEND_MESSAGE_FAILED,
+                    "슬랙 메시지 전송에 실패했습니다.", e);
         }
     }
 

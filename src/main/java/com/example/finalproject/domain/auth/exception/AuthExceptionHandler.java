@@ -4,14 +4,13 @@ import com.example.finalproject.domain.carts.exception.AccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
-//import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
 
-@RestControllerAdvice(basePackages = "com.example.finalproject.domain.auth")
+@RestControllerAdvice(basePackages = "com.example.finalproject")
 public class AuthExceptionHandler {
 
     @ExceptionHandler(AuthApiException.class)
