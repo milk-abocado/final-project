@@ -54,7 +54,7 @@ public class PopularSearchService {
         }
 
         // DB 조회: 동일 조합 여러 개일 수 있으므로 List로 받음
-        List<Searches> searchesList = searchesRepository.findAllByUserIdAndKeywordAndRegion(userId, keyword, region);
+        List<Searches> searchesList = searchesRepository.findAllByUserIdAndKeywordAndRegion(userId, region, keyword);
 
         Searches searches;
         if (!searchesList.isEmpty()) {

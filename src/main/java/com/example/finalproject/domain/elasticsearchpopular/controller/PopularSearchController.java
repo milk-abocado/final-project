@@ -43,7 +43,7 @@ public class PopularSearchController {
         Long userId = Long.parseLong(body.get("userId"));
 
         // DB + Redis 기록
-        searchesService.recordSearch(region, keyword, userId);
+        popularSearchService.recordSearch(region, keyword, userId);
 
         return Map.of("status", "ok");
     }

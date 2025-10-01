@@ -160,7 +160,4 @@ public class SearchesService {
 
         searchesRepository.delete(searches);
     }
-
-    public void recordSearch(String region, String keyword, Long userId) {
-    }
 }
