@@ -37,6 +37,7 @@
 
 ## 🎨 와이어프레임
 [👉 와이어프레임(Figma)](https://embed.figma.com/design/tlgh158R8qiESF2e0RF0OO/%EC%A0%9C%EB%AA%A9-%EC%97%86%E[…]9mA52gwSjSOg7LD-1&embed-host=notion&footer=false&theme=system)
+<img width="876" height="514" alt="스크린샷 2025-09-04 091716" src="https://github.com/user-attachments/assets/07832b99-b486-402f-9606-a36e62463c12" />
 
 ---
 
@@ -45,6 +46,7 @@
 [👉 ERD 자세히 보기](https://github.com/user-attachments/files/22608618/ERD.pdf)
 
 ---
+
 
 ## 📌 사용자 Role
 
