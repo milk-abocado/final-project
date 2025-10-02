@@ -342,6 +342,12 @@
 ---
 ## 🎥 시연 영상
 
+[👉장바구니]( https://youtu.be/dNM6SS8D4to?si=4ADMMZxtn8DoYMBS)
+
+[👉실시간 알림](https://youtu.be/QlV_FEmZYc4?si=KY2uVwRPXbilnS4I)
+
+[👉인기 검색어]( https://youtu.be/ONjGBthskDY?si=6Rjwfuv29mB7yyFj)
+
 ---
 
 ## 🚀 실행 방법
@@ -392,6 +398,28 @@ cd final-project
 ---
 
 ## 📂 프로젝트 구조
+```
+├── config/ 
+├── domain/
+│ ├── auth
+│ ├── carts
+│ ├── common
+│ ├── coupons
+│ ├── elasticsearchpopular
+│ ├── files
+│ ├── menus
+│ ├── notifications
+│ ├── orders
+│ ├── points
+│ ├── reviews
+│ ├── searches
+│ ├── slack
+│ ├── stores
+│ └── users
+└── FinalProjectApplication.java
 
-
+src/main/resources/
+├── application.properties
+└── application.yml
+```
 ---
