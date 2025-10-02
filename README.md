@@ -342,7 +342,7 @@
 ---
 ## 🎥 시연 영상
 
-[👉장바구니](https://www.youtube.com/watch?v=kp1dTQg0xqY))
+[👉장바구니](https://www.youtube.com/watch?v=kp1dTQg0xqY)
 
 [👉실시간 알림](https://youtu.be/QlV_FEmZYc4?si=KY2uVwRPXbilnS4I)
 
